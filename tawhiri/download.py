@@ -49,7 +49,6 @@ from gevent.timeout import Timeout
 from gevent.event import Event
 from gevent.pool import Group
 from gevent.queue import PriorityQueue
-from gevent.dns import resolve_ipv4
 from gevent.coros import RLock
 import gevent.socket
 import ftplib
@@ -60,6 +59,7 @@ from six import reraise
 
 from .dataset import Dataset
 
+__package__ = "tawhiri.download"
 
 __all__ = ["DatasetDownloader", "DownloadDaemon", "main", "unpack_grib"]
 
@@ -433,11 +433,14 @@ class DatasetDownloader(object):
 
     def download(self):
         logger.info("download of %s starting", self.ds_time)
+        print("download of %s starting") # TODO remove dad
 
-        ttl, addresses = resolve_ipv4(self.dataset_host)
+        addresses = [socket.gethostbyname(x) for x in self.dataset_host]
+        
+        #ttl, addresses = resolve_ipv4(self.dataset_host)
         logger.debug("Resolved to %s IPs", len(addresses))
 
-        addresses = [inet_ntoa(x) for x in addresses]
+        #addresses = [inet_ntoa(x) for x in addresses]
 
         total_timeout = self.deadline - datetime.now()
         total_timeout_secs = total_timeout.total_seconds()
@@ -485,7 +488,7 @@ class DatasetDownloader(object):
             for worker_id, address in enumerate(addresses * 2):
                 w = DownloadWorker(self, worker_id, address)
                 w.start()
-                w.link()
+                #w.link()
                 self._greenlets.add(w)
 
             # worker unhandled exceptions are raised in this greenlet
