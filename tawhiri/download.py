@@ -49,7 +49,7 @@ from gevent.timeout import Timeout
 from gevent.event import Event
 from gevent.pool import Group
 from gevent.queue import PriorityQueue
-from gevent.coros import RLock
+from gevent.lock import RLock
 import gevent.socket
 import ftplib
 import itertools
@@ -433,9 +433,8 @@ class DatasetDownloader(object):
 
     def download(self):
         logger.info("download of %s starting", self.ds_time)
-        print("download of %s starting") # TODO remove dad
-
-        addresses = [socket.gethostbyname(x) for x in self.dataset_host]
+        
+        addresses = [gevent.socket.gethostbyname(self.dataset_host)] #TODO why is this a list?
         
         #ttl, addresses = resolve_ipv4(self.dataset_host)
         logger.debug("Resolved to %s IPs", len(addresses))

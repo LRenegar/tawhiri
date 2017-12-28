@@ -36,9 +36,7 @@ entry_points = {
         ],
 }
 
-PY2 = sys.version_info[0] == 2
-if PY2:
-    entry_points["console_scripts"].append("tawhiri-download = tawhiri.download:main")
+entry_points["console_scripts"].append("tawhiri-download = tawhiri.download:main")
 
 setup(
     name="Tawhiri",
