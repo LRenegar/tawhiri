@@ -86,7 +86,8 @@ _grib_name_to_variable = {"Geopotential Height": "height",
                           "V component of wind": "wind_v"}
 
 def unpack_grib(filename, dataset=None, checklist=None, gribmirror=None,
-                assert_hour=None, file_checklist=None, callback=None):
+                assert_hour=None, file_checklist=None, callback=None,
+                expect_pressures=None):
     """
     Unpack the GRIB file at `filename`
 
@@ -150,10 +151,11 @@ def unpack_grib(filename, dataset=None, checklist=None, gribmirror=None,
     try:
         # pass one: check the contents of the file
         _check_grib_file(grib, filename, dataset_array, checklist,
-                         assert_hour, file_checklist, callback)
+                         assert_hour, file_checklist, callback,
+                         expect_pressures)
 
         # pass two: unpack
-        for record, location, location_name in _grib_records(grib):
+        for record, location, location_name in _grib_records(grib, expect_pressures):
             if dataset_array is not None:
                 # the fact that latitudes are reversed here must match
                 # check_axes!
@@ -175,7 +177,8 @@ def unpack_grib(filename, dataset=None, checklist=None, gribmirror=None,
         grib.close()
 
 def _check_grib_file(grib, filename, dataset_array, checklist,
-                     assert_hour, file_checklist, callback):
+                     assert_hour, file_checklist, callback,
+                     expected_pressue_levels):
     """
     The first pass over the GRIB file, checking its contents
 
@@ -191,7 +194,7 @@ def _check_grib_file(grib, filename, dataset_array, checklist,
 
     checked_axes = False
 
-    for record, location, location_name in _grib_records(grib):
+    for record, location, location_name in _grib_records(grib, expected_pressue_levels):
         _check_record(record, location, location_name,
                       checklist, assert_hour, file_checklist)
         if file_checklist is not None:
@@ -216,7 +219,7 @@ def _check_grib_file(grib, filename, dataset_array, checklist,
     if file_checklist != set():
         raise ValueError("records missing from file")
 
-def _grib_records(grib):
+def _grib_records(grib, expect_pressures=None):
     """
     Yield ``(record, location, location_name)`` tuples in the file `grib`
 
@@ -228,11 +231,15 @@ def _grib_records(grib):
 
     Records that don't have levels specified as pressure, or are not
     variables that we are interested in, are ignored.
+    If a list of pressure levels is supplied, records that are not
+    at a pressure level in that list are also ignored.
     """
 
     grib.seek(0)
     for record in grib:
         if record.typeOfLevel != "isobaricInhPa":
+            continue
+        if expect_pressures is not None and record.level not in expect_pressures:
             continue
         if record.name not in _grib_name_to_variable:
             continue
@@ -798,7 +805,8 @@ class DownloadWorker(gevent.Greenlet):
                             self.downloader._gribmirror,
                             file_checklist=file_checklist,
                             assert_hour=queue_item.hour,
-                            callback=lambda a, b, c: sleep(0))
+                            callback=lambda a, b, c: sleep(0),
+                            expect_pressures=queue_item.expect_pressures)
             except (greenlet.GreenletExit, KeyboardInterrupt, SystemExit):
                 raise
             except:
