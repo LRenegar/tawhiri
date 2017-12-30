@@ -297,7 +297,7 @@ class FTP(ftplib.FTP):
         self.sock = gevent.socket.create_connection(
                 (self.host, self.port), self.timeout)
         self.af = self.sock.family
-        self.file = self.sock.makefile('rb')
+        self.file = self.sock.makefile(mode='r', encoding=self.encoding)
         self.welcome = self.getresp()
         return self.welcome
 
@@ -429,7 +429,7 @@ class DatasetDownloader(object):
                                   suffix=Dataset.SUFFIX_GRIBMIRROR)
             logger.debug("Opening gribmirror (truncate and write) %s %s",
                                 self.ds_time, fn)
-            self._gribmirror = open(fn, "w+")
+            self._gribmirror = open(fn, "wb+")
 
     def download(self):
         logger.info("download of %s starting", self.ds_time)
@@ -702,7 +702,7 @@ class DownloadWorker(gevent.Greenlet):
         remote_file = os.path.join(self.downloader.remote_directory,
                                    queue_item.filename)
 
-        with open(temp_file, "w") as f:
+        with open(temp_file, "wb") as f:
             start = time()
             length = 0
 
