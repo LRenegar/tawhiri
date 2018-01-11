@@ -24,7 +24,7 @@ from datetime import datetime
 import time
 import strict_rfc3339
 
-from tawhiri import solver, models
+from tawhiri import solver, models, warnings
 from tawhiri.dataset import Dataset as WindDataset
 from ruaumoko import Dataset as ElevationDataset
 
@@ -216,16 +216,19 @@ def run_prediction(req):
     resp['request']['dataset'] = tawhiri_ds.ds_time.strftime(
         "%Y-%m-%dT%H:00:00Z")
 
+    warningcounts = warnings.WarningCounts()
+
     # Stages
     if req['profile'] == PROFILE_STANDARD:
         stages = models.standard_profile(req['ascent_rate'],
                                          req['burst_altitude'],
                                          req['descent_rate'], tawhiri_ds,
-                                         ruaumoko_ds())
+                                         ruaumoko_ds(), warningcounts)
     elif req['profile'] == PROFILE_FLOAT:
         stages = models.float_profile(req['ascent_rate'],
                                       req['float_altitude'],
-                                      req['stop_datetime'], tawhiri_ds)
+                                      req['stop_datetime'], tawhiri_ds,
+                                      warningcounts)
     else:
         raise InternalException("No implementation for known profile.")
 

@@ -1,8 +1,8 @@
 import os
-import numpy as np
+#import numpy as np
 import logging
 from datetime import datetime
-from tawhiri.wind import Dataset, unpack_grib
+from tawhiri.download import DatasetDownloader
 
 directory = "datasets"
 ds_time = datetime(2013, 7, 9, 12, 0, 0)
