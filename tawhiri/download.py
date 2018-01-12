@@ -716,7 +716,7 @@ class DownloadWorker(gevent.Greenlet):
             try:
                 self._connection.retrbinary('RETR ' + remote_file, f.write)
             except ftplib.Error as e:
-                if e[0].startswith("550"):
+                if e.args[0].startswith("550"):
                     raise NotFound
                 else:
                     raise
