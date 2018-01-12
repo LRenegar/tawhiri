@@ -551,7 +551,7 @@ class DatasetDownloader(object):
         if self.files_complete == self.files_count:
             self.completed.set()
 
-        logger.info("progress %s/%s %s%%",
+        logger.info("progress %s/%s %0.2f%%",
                     self.files_complete, self.files_count,
                     self.files_complete / self.files_count * 100)
 
