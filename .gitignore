@@ -10,3 +10,4 @@ test_prediction_data.js
 test_prediction.kml
 loglog.png
 .coverage
+/*.conf
