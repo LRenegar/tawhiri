@@ -1096,26 +1096,32 @@ def main():
     parser = argparse.ArgumentParser(description='Dataset Downloader')
     root_subparsers = parser.add_subparsers(dest='subparser_name')
 
-    parser_daemon = root_subparsers.add_parser('daemon',
+    parser_daemon = root_subparsers.add_parser('daemon', parents=[parent],
                                           help='downloader daemon mode')
-
-    daemon_subparsers = parser_daemon.add_subparsers(
-        dest='daemon_subparser_name')
-    daemon_subparsers.add_parser('start', parents=[parent, parser_daemon],
-                                 help='start the downloader daemon')
-    daemon_subparsers.add_parser('run', parents=[parent, parser_daemon],
-                                 help='run the downloader daemon in the '
-                                 'current process, without UNIX '
-                                 'daemon semantics')
-    daemon_subparsers.add_parser('stop', parents=[parent, parser_daemon],
-                                 help='stop the downloader daemon')
-    daemon_subparsers.add_parser('restart', parents=[parent, parser_daemon],
-                                 help='restart the downloader daemon')
 
     parser_daemon.add_argument('-n', '--num-datasets', type=int, default=1)
 
-    parser_download = root_subparsers.add_parser('download', parents=[parent],
-                                            help='download a single dataset')
+    daemon_subparsers = parser_daemon.add_subparsers(
+        dest='daemon_subparser_name')
+    daemon_subparsers.add_parser('start', parents=[parser_daemon],
+                                 conflict_handler='resolve',
+                                 help='start the downloader daemon')
+    daemon_subparsers.add_parser('run', parents=[parser_daemon],
+                                 conflict_handler = 'resolve',
+                                 help='run the downloader daemon in the '
+                                 'current process, without UNIX '
+                                 'daemon semantics')
+    daemon_subparsers.add_parser('stop', parents=[parser_daemon],
+                                 conflict_handler='resolve',
+                                 help='stop the downloader daemon')
+    daemon_subparsers.add_parser('restart', parents=[parser_daemon],
+                                 conflict_handler='resolve',
+                                 help='restart the downloader daemon')
+
+    parser_download = \
+        root_subparsers.add_parser('download', parents=[parent],
+                                   help='download a single dataset')
+
     parser_download.add_argument('dataset', type=_parse_ds_str)
 
     # TODO - more options (other options of relevant initialisers)
