@@ -39,7 +39,6 @@ import shutil
 import math
 import tempfile
 import signal
-import time
 import atexit
 from collections import namedtuple
 from time import time
