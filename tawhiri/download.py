@@ -59,7 +59,6 @@ import itertools
 import numpy as np
 import pygrib
 from six import reraise
-from daemon import DaemonContext
 
 from .dataset import Dataset
 
