@@ -41,7 +41,7 @@ import tempfile
 import signal
 import atexit
 from collections import namedtuple
-from time import time
+import time
 from datetime import datetime, timedelta
 from socket import inet_ntoa
 import gevent.local
@@ -657,7 +657,7 @@ class DownloadWorker(gevent.Greenlet):
 
             self._logger.debug("downloading %s", queue_item.filename)
 
-            sleep_for = queue_item.sleep_until - time()
+            sleep_for = queue_item.sleep_until - time.time()
             if sleep_for > 0:
                 self._logger.debug("sleeping for %s", sleep_for)
                 self._connection_close() # don't hold connections open
@@ -728,7 +728,7 @@ class DownloadWorker(gevent.Greenlet):
                                    queue_item.filename)
 
         with open(temp_file, "wb") as f:
-            start = time()
+            start = time.time()
             length = 0
 
             try:
@@ -740,7 +740,7 @@ class DownloadWorker(gevent.Greenlet):
                     raise
 
             length = f.tell()
-            end = time()
+            end = time.time()
 
             duration = end - start
             speed = length / (duration * 1024 * 1024)
@@ -753,7 +753,7 @@ class DownloadWorker(gevent.Greenlet):
             sleep_time = self.downloader.first_file_timeout
         self._logger.info("not found: %s; file sleep %s",
                           queue_item.filename, sleep_time)
-        sleep_until = time() + sleep_time
+        sleep_until = time.time() + sleep_time
         self._files.put(queue_item._replace(sleep_until=sleep_until))
 
     def _handle_timeout(self, queue_item):
@@ -775,7 +775,7 @@ class DownloadWorker(gevent.Greenlet):
             return True # abort download
         else:
             n = queue_item.bad_downloads + 1
-            su = time() + self.downloader.timeout
+            su = time.time() + self.downloader.timeout
             i = queue_item._replace(bad_downloads=n, sleep_until=su)
             self._logger.warning("bad file (%s, attempt %s), file sleep %s",
                                  queue_item.filename, n,
