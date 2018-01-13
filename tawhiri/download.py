@@ -1101,12 +1101,15 @@ def main():
 
     daemon_subparsers = parser_daemon.add_subparsers(
         dest='daemon_subparser_name')
-    daemon_subparsers.add_parser('start', help='start the downloader daemon')
-    daemon_subparsers.add_parser('run', help='run the downloader daemon in the '
-                                             'current process, without UNIX '
-                                             'daemon semantics')
-    daemon_subparsers.add_parser('stop', help='stop the downloader daemon')
-    daemon_subparsers.add_parser('restart',
+    daemon_subparsers.add_parser('start', parents=[parent],
+                                 help='start the downloader daemon')
+    daemon_subparsers.add_parser('run', parents=[parent],
+                                 help='run the downloader daemon in the '
+                                 'current process, without UNIX '
+                                 'daemon semantics')
+    daemon_subparsers.add_parser('stop', parents=[parent],
+                                 help='stop the downloader daemon')
+    daemon_subparsers.add_parser('restart', parents=[parent],
                                  help='restart the downloader daemon')
 
     parser_daemon.add_argument('-n', '--num-datasets', type=int, default=1)
