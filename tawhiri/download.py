@@ -1165,9 +1165,17 @@ def main():
                 d.download()
             finally:
                 d.close()
-        else:
-            d = DownloadDaemon(args.directory, num_datasets=args.num_datasets)
-            d.run()
+        elif args.subparser_name == 'daemon':
+            download_daemon = DownloadDaemon(args.directory,
+                                              num_datasets=args.num_datasets)
+            if args.daemon_subparser_name == 'start':
+                download_daemon.start()
+            elif args.daemon_subparser_name == 'stop':
+                download_daemon.stop()
+            elif args.daemon_subparser_name == 'run':
+                download_daemon.run()
+            elif args.daemon_subparser_name == 'restart':
+                download_daemon.restart()
     except (greenlet.GreenletExit, KeyboardInterrupt, SystemExit):
         logger.warning("exit via %s", sys.exc_info()[0].__name__)
         raise
