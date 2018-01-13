@@ -39,9 +39,9 @@ import shutil
 import math
 import tempfile
 import signal
+import time
 import atexit
 from collections import namedtuple
-import time
 from datetime import datetime, timedelta
 from socket import inet_ntoa
 import gevent.local
@@ -952,6 +952,7 @@ class DownloadDaemon(object):
         the background. If the downloader is to run in the current process, use
         ``run()`` instead.
         """
+        logger.info("starting daemon")
 
         # Check for a pidfile to see if the daemon already runs
         try:
@@ -967,10 +968,13 @@ class DownloadDaemon(object):
 
         # Start the daemon
         self.daemonize()
+        logger.info("daemon started")
         self.run()
 
     def stop(self):
         """Stop the daemon."""
+
+        logger.info("stopping daemon")
 
         # Get the pid from the pidfile
         try:
@@ -986,6 +990,7 @@ class DownloadDaemon(object):
 
         # Try killing the daemon process    
         try:
+            logger.debug('sending kill signal to PID {0}'.format(pid))
             while True:
                 os.kill(pid, signal.SIGTERM)
                 time.sleep(0.1)
@@ -994,6 +999,8 @@ class DownloadDaemon(object):
                 os.remove(self.pidfile)
         except PermissionError:
             pass # TODO error handling
+
+        logger.info("daemon stopped")
 
     def restart(self):
         """Restart the daemon."""
