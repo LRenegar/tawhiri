@@ -38,6 +38,9 @@ import errno
 import shutil
 import math
 import tempfile
+import signal
+import time
+import atexit
 from collections import namedtuple
 from time import time
 from datetime import datetime, timedelta
@@ -56,6 +59,7 @@ import itertools
 import numpy as np
 import pygrib
 from six import reraise
+from daemon import DaemonContext
 
 from .dataset import Dataset
 
@@ -71,6 +75,12 @@ assert Dataset.element_type == 'float32'
 assert Dataset.axes._fields[0:3] == ("hour", "pressure", "variable")
 
 
+def handle_sigterm(signum, frame):
+    """Handle termination signal by exiting. Required for daemon behavior."""
+    logger.info("Termination signal received; exiting.")
+    system.exit(0)
+
+
 def make_checklist():
     """
     Create a matrix of bools with dimensions ``Dataset.shape[0:3]``
@@ -84,6 +94,7 @@ def make_checklist():
 _grib_name_to_variable = {"Geopotential Height": "height",
                           "U component of wind": "wind_u",
                           "V component of wind": "wind_v"}
+
 
 def unpack_grib(filename, dataset=None, checklist=None, gribmirror=None,
                 assert_hour=None, file_checklist=None, callback=None,
@@ -155,7 +166,8 @@ def unpack_grib(filename, dataset=None, checklist=None, gribmirror=None,
                          expect_pressures)
 
         # pass two: unpack
-        for record, location, location_name in _grib_records(grib, expect_pressures):
+        for record, location, location_name \
+                in _grib_records(grib, expect_pressures):
             if dataset_array is not None:
                 # the fact that latitudes are reversed here must match
                 # check_axes!
@@ -176,9 +188,10 @@ def unpack_grib(filename, dataset=None, checklist=None, gribmirror=None,
     finally:
         grib.close()
 
+
 def _check_grib_file(grib, filename, dataset_array, checklist,
                      assert_hour, file_checklist, callback,
-                     expected_pressue_levels):
+                     expected_pressure_levels):
     """
     The first pass over the GRIB file, checking its contents
 
@@ -194,7 +207,8 @@ def _check_grib_file(grib, filename, dataset_array, checklist,
 
     checked_axes = False
 
-    for record, location, location_name in _grib_records(grib, expected_pressue_levels):
+    for record, location, location_name \
+            in _grib_records(grib, expected_pressure_levels):
         _check_record(record, location, location_name,
                       checklist, assert_hour, file_checklist)
         if file_checklist is not None:
@@ -218,6 +232,7 @@ def _check_grib_file(grib, filename, dataset_array, checklist,
 
     if file_checklist != set():
         raise ValueError("records missing from file")
+
 
 def _grib_records(grib, expect_pressures=None):
     """
@@ -252,6 +267,7 @@ def _grib_records(grib, expect_pressures=None):
 
         yield record, location, location_name
 
+
 def _check_record(record, location, location_name,
                   checklist, assert_hour, file_checklist):
     """
@@ -274,6 +290,7 @@ def _check_record(record, location, location_name,
     if file_checklist is not None and location_name not in file_checklist:
         raise ValueError("unexpected record: {0}".format(location_name))
 
+
 def _check_axes(record):
     """
     Check the axes on `record` match what we expect
@@ -289,6 +306,7 @@ def _check_axes(record):
     if not np.array_equal(record.distinctLongitudes,
                           Dataset.axes.longitude):
         raise ValueError("unexpected axes on record (longitudes)")
+
 
 class FTP(ftplib.FTP):
     """gevent-friendly :class:`ftplib.FTP`"""
@@ -332,11 +350,12 @@ class FTP(ftplib.FTP):
         if resp[:3] == '150':
             size = ftplib.parse150(resp)
 
-        return conn, size
+        return conn, size  # TODO size might not be defined
 
 
 class NotFound(Exception):
     """A GRIB file wasn't found"""
+
 
 class BadFile(Exception):
     """A GRIB file was retrieved, but its contents were bad"""
@@ -348,7 +367,7 @@ class DatasetDownloader(object):
                                      "expect_pressures", "bad_downloads"))
 
     filename_pattern = \
-            "gfs.t{ds_hour}z.pgrb2{pressure_flag}.0p50.f{axis_hour:03}"
+        "gfs.t{ds_hour}z.pgrb2{pressure_flag}.0p50.f{axis_hour:03}"
 
     def __init__(self, directory, ds_time, timeout=120,
                  first_file_timeout=600,
@@ -422,7 +441,7 @@ class DatasetDownloader(object):
         logger.info("downloader: opening files for dataset %s", self.ds_time)
 
         self._tmp_directory = \
-                tempfile.mkdtemp(dir=self.directory, prefix="download.")
+            tempfile.mkdtemp(dir=self.directory, prefix="download.")
         os.chmod(self._tmp_directory, 0o775)
         logger.debug("Temporary directory is %s", self._tmp_directory)
 
@@ -435,7 +454,7 @@ class DatasetDownloader(object):
                                   directory=self._tmp_directory,
                                   suffix=Dataset.SUFFIX_GRIBMIRROR)
             logger.debug("Opening gribmirror (truncate and write) %s %s",
-                                self.ds_time, fn)
+                         self.ds_time, fn)
             self._gribmirror = open(fn, "wb+")
 
     def download(self):
@@ -443,10 +462,10 @@ class DatasetDownloader(object):
         
         addresses = [gevent.socket.gethostbyname(self.dataset_host)] #TODO why is this a list?
         
-        #ttl, addresses = resolve_ipv4(self.dataset_host)
+        # ttl, addresses = resolve_ipv4(self.dataset_host)
         logger.debug("Resolved to %s IPs", len(addresses))
 
-        #addresses = [inet_ntoa(x) for x in addresses]
+        # addresses = [inet_ntoa(x) for x in addresses]
 
         total_timeout = self.deadline - datetime.now()
         total_timeout_secs = total_timeout.total_seconds()
@@ -615,6 +634,7 @@ class DatasetDownloader(object):
         logger.warning("deleting %s", fn)
         os.unlink(fn)
 
+
 class DownloadWorker(gevent.Greenlet):
     def __init__(self, downloader, worker_id, connect_host):
         gevent.Greenlet.__init__(self)
@@ -763,6 +783,7 @@ class DownloadWorker(gevent.Greenlet):
                                  queue_item.filename, n,
                                  self.downloader.timeout, exc_info=1)
             self._files.put(i)
+            # TODO return false?
 
     def _handle_ioerror(self, queue_item):
         if self._server_sleep_backoff < 10:
@@ -819,10 +840,14 @@ class DownloadWorker(gevent.Greenlet):
                     del traceback
 
 class DownloadDaemon(object):
-    def __init__(self, directory, num_datasets=1):
+    def __init__(self, directory,
+                 pidfile='/var/run/tawhiri/tawhiri-download.pid',
+                 num_datasets=1 ):
         # TODO - accept the options that DatasetDownloader does
         self.directory = directory
         self.num_datasets = num_datasets
+        self.pidfile = pidfile
+
 
     def clean_directory(self):
         # also returns the latest dataset we have
@@ -856,7 +881,125 @@ class DownloadDaemon(object):
         else:
             return None
 
+    def daemonize(self):
+        """Daemonize using UNIX double fork semantics.
+
+            This method performs the operations required for a daemon to be
+            considered well-behaved under PEP 3143, including detachment from
+            the controlling process, running in the background, and closing
+            open files. The log file, if one exists, is preserved.
+        """
+
+        # TODO handle closing files
+        signal.signal(signal.SIGTERM, handle_sigterm)
+
+        try:
+            pid = os.fork()
+            if pid > 0:
+                # exit first parent
+                sys.exit(0)
+        except OSError:
+            logger.exception('fork #1 failed')
+            sys.exit(1)
+
+        # decouple from parent environment
+        os.chdir('/')
+        os.setsid()
+        os.umask(0)
+
+        # do second fork
+        try:
+            pid = os.fork()
+            if pid > 0:
+                # exit from second parent
+                sys.exit(0)
+        except OSError:
+            logger.exception('fork #2 failed')
+            sys.exit(1)
+
+        # redirect standard file descriptors
+        sys.stdout.flush()
+        sys.stderr.flush()
+        si = open(os.devnull, 'r')
+        so = open(os.devnull, 'a+')
+        se = open(os.devnull, 'a+')
+
+        os.dup2(si.fileno(), sys.stdin.fileno())
+        os.dup2(so.fileno(), sys.stdout.fileno())
+        os.dup2(se.fileno(), sys.stderr.fileno())
+
+        # write pidfile
+        atexit.register(self.delpid)
+
+        pid = str(os.getpid())
+        with open(self.pidfile, 'w+') as f:
+            f.write(pid + '\n')
+
+    def delpid(self):
+        os.remove(self.pidfile)
+
+    def start(self):
+        """Start the daemon.
+
+        This will cause the daemon to detach from the parent process and run in
+        the background. If the downloader is to run in the current process, use
+        ``run()`` instead.
+        """
+
+        # Check for a pidfile to see if the daemon already runs
+        try:
+            with open(self.pidfile, 'r') as pf:
+                pid = int(pf.read().strip())
+        except IOError:
+            pid = None
+
+        if pid:  # TODO add proper logging
+            message = "pidfile {0} already exists. Daemon already running?\n"
+            sys.stderr.write(message.format(self.pidfile))
+            sys.exit(1)
+
+        # Start the daemon
+        self.daemonize()
+        self.run()
+
+    def stop(self):
+        """Stop the daemon."""
+
+        # Get the pid from the pidfile
+        try:
+            with open(self.pidfile, 'r') as pf:
+                pid = int(pf.read().strip())
+        except IOError:
+            pid = None
+
+        if not pid:
+            message = "pidfile {0} does not exist. Daemon not running?"
+            logger.info(message.format(self.pidfile))
+            return  # not an error in a restart
+
+        # Try killing the daemon process    
+        try:
+            while True:
+                os.kill(pid, signal.SIGTERM)
+                time.sleep(0.1)
+        except ProcessLookupError:
+            if os.path.exists(self.pidfile):
+                os.remove(self.pidfile)
+        except PermissionError:
+            logger.exception() # TODO
+
+    def restart(self):
+        """Restart the daemon."""
+        self.stop()
+        self.start()
+
     def run(self):
+        """Run the daemon, downloading each wind dataset as it is published.
+
+        This method should not ordinarily be called from outside the class. To
+        download a single dataset, use a `DatasetDownloader` directly. To start
+        the daemon with correct UNIX daemon behavior, use ``start()``.
+        """
         last_downloaded_dataset = self.clean_directory()
         latest_dataset = self._latest_dataset()
 
@@ -904,6 +1047,7 @@ class DownloadDaemon(object):
         finally:
             d.close()
 
+
 def _parse_ds_str(ds_time_str):
     try:
         if len(ds_time_str) != 10:
@@ -919,17 +1063,17 @@ def _parse_ds_str(ds_time_str):
 
 
 _format_email = \
-"""%(levelname)s from logger %(name)s (thread %(threadName)s)
-
-Time:       %(asctime)s
-Location:   %(pathname)s:%(lineno)d
-Module:     %(module)s
-Function:   %(funcName)s
-
-%(message)s"""
+    """%(levelname)s from logger %(name)s (thread %(threadName)s)
+    
+    Time:       %(asctime)s
+    Location:   %(pathname)s:%(lineno)d
+    Module:     %(module)s
+    Function:   %(funcName)s
+    
+    %(message)s"""
 
 _format_string = \
-"[%(asctime)s] %(levelname)s %(name)s %(threadName)s: %(message)s"
+    "[%(asctime)s] %(levelname)s %(name)s %(threadName)s: %(message)s"
 
 
 def main():
@@ -952,13 +1096,24 @@ def main():
     group.add_argument("-q", "--quiet", action="store_true")
 
     parser = argparse.ArgumentParser(description='Dataset Downloader')
-    subparsers = parser.add_subparsers(dest='subparser_name')
+    root_subparsers = parser.add_subparsers(dest='subparser_name')
 
-    parser_daemon = subparsers.add_parser('daemon', parents=[parent],
+    parser_daemon = root_subparsers.add_parser('daemon', parents=[parent],
                                           help='downloader daemon mode')
+
+    daemon_subparsers = parser_daemon.add_subparsers(
+        dest='daemon_subparser_name')
+    daemon_subparsers.add_parser('start', help='start the downloader daemon')
+    daemon_subparsers.add_parser('run', help='run the downloader daemon in the '
+                                             'current process, without UNIX '
+                                             'daemon semantics')
+    daemon_subparsers.add_parser('stop', help='stop the downloader daemon')
+    daemon_subparsers.add_parser('restart',
+                                 help='restart the downloader daemon')
+
     parser_daemon.add_argument('-n', '--num-datasets', type=int, default=1)
 
-    parser_download = subparsers.add_parser('download', parents=[parent],
+    parser_download = root_subparsers.add_parser('download', parents=[parent],
                                             help='download a single dataset')
     parser_download.add_argument('dataset', type=_parse_ds_str)
 
@@ -1011,7 +1166,7 @@ def main():
             finally:
                 d.close()
         else:
-            d = DownloadDaemon(args.directory, args.num_datasets)
+            d = DownloadDaemon(args.directory, num_datasets=args.num_datasets)
             d.run()
     except (greenlet.GreenletExit, KeyboardInterrupt, SystemExit):
         logger.warning("exit via %s", sys.exc_info()[0].__name__)
@@ -1019,6 +1174,7 @@ def main():
     except:
         logger.exception("unhandled exception")
         raise
+
 
 if __name__ == "__main__":
     main()
