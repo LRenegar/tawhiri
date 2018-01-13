@@ -76,7 +76,7 @@ assert Dataset.axes._fields[0:3] == ("hour", "pressure", "variable")
 def handle_sigterm(signum, frame):
     """Handle termination signal by exiting. Required for daemon behavior."""
     logger.info("Termination signal received; exiting.")
-    system.exit(0)
+    sys.exit(0)
 
 
 def make_checklist():
