@@ -1110,28 +1110,28 @@ def main():
     group.add_argument("-q", "--quiet", action="store_true")
 
     parser = argparse.ArgumentParser(description='Dataset Downloader')
+
     root_subparsers = parser.add_subparsers(dest='subparser_name')
 
-    parser_daemon = root_subparsers.add_parser('daemon', parents=[parent],
-                                          help='downloader daemon mode')
+    daemon_parent = argparse.ArgumentParser(add_help=False,
+                                            parents=[parent])
+    daemon_parent.add_argument('-n', '--num-datasets', type=int, default=1)
 
-    parser_daemon.add_argument('-n', '--num-datasets', type=int, default=1)
+    parser_daemon = root_subparsers.add_parser('daemon',
+                                               parents=[daemon_parent],
+                                               help='downloader daemon mode')
 
     daemon_subparsers = parser_daemon.add_subparsers(
         dest='daemon_subparser_name')
-    daemon_subparsers.add_parser('start', parents=[parser_daemon],
-                                 conflict_handler='resolve',
+    daemon_subparsers.add_parser('start', parents=[daemon_parent],
                                  help='start the downloader daemon')
-    daemon_subparsers.add_parser('run', parents=[parser_daemon],
-                                 conflict_handler = 'resolve',
+    daemon_subparsers.add_parser('run', parents=[daemon_parent],
                                  help='run the downloader daemon in the '
-                                 'current process, without UNIX '
-                                 'daemon semantics')
-    daemon_subparsers.add_parser('stop', parents=[parser_daemon],
-                                 conflict_handler='resolve',
+                                 'current process without UNIX daemon '
+                                 'semantics')
+    daemon_subparsers.add_parser('stop', parents=[daemon_parent],
                                  help='stop the downloader daemon')
-    daemon_subparsers.add_parser('restart', parents=[parser_daemon],
-                                 conflict_handler='resolve',
+    daemon_subparsers.add_parser('restart', parents=[daemon_parent],
                                  help='restart the downloader daemon')
 
     parser_download = \
