@@ -1096,20 +1096,20 @@ def main():
     parser = argparse.ArgumentParser(description='Dataset Downloader')
     root_subparsers = parser.add_subparsers(dest='subparser_name')
 
-    parser_daemon = root_subparsers.add_parser('daemon', parents=[parent],
+    parser_daemon = root_subparsers.add_parser('daemon',
                                           help='downloader daemon mode')
 
     daemon_subparsers = parser_daemon.add_subparsers(
         dest='daemon_subparser_name')
-    daemon_subparsers.add_parser('start', parents=[parent],
+    daemon_subparsers.add_parser('start', parents=[parent, parser_daemon],
                                  help='start the downloader daemon')
-    daemon_subparsers.add_parser('run', parents=[parent],
+    daemon_subparsers.add_parser('run', parents=[parent, parser_daemon],
                                  help='run the downloader daemon in the '
                                  'current process, without UNIX '
                                  'daemon semantics')
-    daemon_subparsers.add_parser('stop', parents=[parent],
+    daemon_subparsers.add_parser('stop', parents=[parent, parser_daemon],
                                  help='stop the downloader daemon')
-    daemon_subparsers.add_parser('restart', parents=[parent],
+    daemon_subparsers.add_parser('restart', parents=[parent, parser_daemon],
                                  help='restart the downloader daemon')
 
     parser_daemon.add_argument('-n', '--num-datasets', type=int, default=1)
