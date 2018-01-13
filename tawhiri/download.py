@@ -837,7 +837,16 @@ class DownloadWorker(gevent.Greenlet):
                     # avoid circular reference
                     del traceback
 
+
 class DownloadDaemon(object):
+    """
+    Daemon for downloading GFS forecast datasets from NOAA.
+
+    UNIX daemon semantics taken from public domain python daemon implementation
+    by Sander Marechal (http://www.jejik.com/articles/2007/02/
+    a_simple_unix_linux_daemon_in_python/).
+    """
+
     def __init__(self, directory,
                  pidfile='/var/run/tawhiri/tawhiri-download.pid',
                  num_datasets=1 ):
@@ -895,7 +904,7 @@ class DownloadDaemon(object):
             pid = os.fork()
             if pid > 0:
                 # exit first parent
-                sys.exit(0)
+                os._exit(0)
         except OSError:
             logger.exception('fork #1 failed')
             sys.exit(1)
@@ -910,7 +919,7 @@ class DownloadDaemon(object):
             pid = os.fork()
             if pid > 0:
                 # exit from second parent
-                sys.exit(0)
+                os._exit(0)
         except OSError:
             logger.exception('fork #2 failed')
             sys.exit(1)
@@ -929,12 +938,12 @@ class DownloadDaemon(object):
         # write pidfile
         atexit.register(self.delpid)
 
-        pid = str(os.getpid())
+        pid = str(os.getpid())  # TODO error handling
         with open(self.pidfile, 'w+') as f:
             f.write(pid + '\n')
 
     def delpid(self):
-        os.remove(self.pidfile)
+        os.remove(self.pidfile)  # TODO error handling
 
     def start(self):
         """Start the daemon.
@@ -946,7 +955,7 @@ class DownloadDaemon(object):
 
         # Check for a pidfile to see if the daemon already runs
         try:
-            with open(self.pidfile, 'r') as pf:
+            with open(self.pidfile, 'r') as pf:  # TODO error handling
                 pid = int(pf.read().strip())
         except IOError:
             pid = None
@@ -965,7 +974,7 @@ class DownloadDaemon(object):
 
         # Get the pid from the pidfile
         try:
-            with open(self.pidfile, 'r') as pf:
+            with open(self.pidfile, 'r') as pf:  # TODO error handling
                 pid = int(pf.read().strip())
         except IOError:
             pid = None
@@ -984,7 +993,7 @@ class DownloadDaemon(object):
             if os.path.exists(self.pidfile):
                 os.remove(self.pidfile)
         except PermissionError:
-            logger.exception() # TODO
+            pass # TODO error handling
 
     def restart(self):
         """Restart the daemon."""
