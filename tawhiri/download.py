@@ -847,8 +847,10 @@ class DownloadDaemon(object):
     a_simple_unix_linux_daemon_in_python/).
     """
 
+    default_pid_file = '/var/run/tawhiri/tawhiri-download.pid'
+
     def __init__(self, directory,
-                 pidfile='/var/run/tawhiri/tawhiri-download.pid',
+                 pidfile=default_pid_file,
                  num_datasets=1 ):
         # TODO - accept the options that DatasetDownloader does
         self.directory = directory
@@ -1115,7 +1117,11 @@ def main():
 
     daemon_parent = argparse.ArgumentParser(add_help=False,
                                             parents=[parent])
-    daemon_parent.add_argument('-n', '--num-datasets', type=int, default=1)
+    daemon_parent.add_argument('-n', '--num-datasets', type=int, default=1,
+                               help='number of datasets to store')
+    daemon_parent.add_argument('-p', '--pidfile',
+                               default=DownloadDaemon.default_pid_file,
+                               help='location of daemon PID file')
 
     parser_daemon = root_subparsers.add_parser('daemon',
                                                parents=[daemon_parent],
