@@ -1000,7 +1000,8 @@ class DownloadDaemon(object):
             if os.path.exists(self.pidfile):
                 os.remove(self.pidfile)
         except PermissionError:
-            pass # TODO error handling
+            logger.error("could not stop daemon due to permissions")
+            raise # TODO Is this appropriate error handling?
 
         logger.info("daemon stopped")
 
