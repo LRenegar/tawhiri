@@ -170,7 +170,7 @@ def unpack_grib(filename, dataset=None, checklist=None, gribmirror=None,
                 # the fact that latitudes are reversed here must match
                 # check_axes!
                 t, p, v = location
-                dataset_array[t,p,v,::-1,:] = record.values
+                dataset_array[t, p, v, ::-1, :] = record.values
             if gribmirror is not None:
                 gribmirror.write(record.tostring())
             if checklist is not None:
@@ -282,7 +282,7 @@ def _check_record(record, location, location_name,
 
     if checklist is not None and checklist[location]:
         raise ValueError("record already unpacked (from other file): {0}"
-                            .format(location_name))
+                         .format(location_name))
     if assert_hour is not None and record.forecastTime != assert_hour:
         raise ValueError("Incorrect forecastTime (assert_hour)")
     if file_checklist is not None and location_name not in file_checklist:
@@ -361,8 +361,8 @@ class BadFile(Exception):
 
 class DatasetDownloader(object):
     _queue_item_type = namedtuple("queue_item",
-                                    ("hour", "sleep_until", "filename",
-                                     "expect_pressures", "bad_downloads"))
+                                  ("hour", "sleep_until", "filename",
+                                   "expect_pressures", "bad_downloads"))
 
     filename_pattern = \
         "gfs.t{ds_hour}z.pgrb2{pressure_flag}.0p50.f{axis_hour:03}"
@@ -386,7 +386,7 @@ class DatasetDownloader(object):
 
         if not (write_dataset or write_gribmirror):
             raise ValueError("Choose write_datset or write_gribmirror "
-                                "(or both)")
+                             "(or both)")
 
         if deadline is None:
             deadline = max(datetime.now() + timedelta(hours=2),
@@ -458,12 +458,9 @@ class DatasetDownloader(object):
     def download(self):
         logger.info("download of %s starting", self.ds_time)
         
-        addresses = [gevent.socket.gethostbyname(self.dataset_host)] #TODO why is this a list?
-        
-        # ttl, addresses = resolve_ipv4(self.dataset_host)
-        logger.debug("Resolved to %s IPs", len(addresses))
+        addresses = [gevent.socket.gethostbyname(self.dataset_host)]
 
-        # addresses = [inet_ntoa(x) for x in addresses]
+        logger.debug("Resolved to %s IPs", len(addresses))
 
         total_timeout = self.deadline - datetime.now()
         total_timeout_secs = total_timeout.total_seconds()
@@ -511,7 +508,6 @@ class DatasetDownloader(object):
             for worker_id, address in enumerate(addresses * 2):
                 w = DownloadWorker(self, worker_id, address)
                 w.start()
-                #w.link()
                 self._greenlets.add(w)
 
             # worker unhandled exceptions are raised in this greenlet
@@ -699,7 +695,7 @@ class DownloadWorker(gevent.Greenlet):
         except BadFile as e:
             abort = self._handle_badfile(queue_item)
             if abort:
-                raise # thereby killing the whole download
+                raise  # thereby killing the whole download
 
         except (gevent.socket.error, ftplib.Error):
             self._handle_ioerror(queue_item)
@@ -851,12 +847,11 @@ class DownloadDaemon(object):
 
     def __init__(self, directory,
                  pidfile=default_pid_file,
-                 num_datasets=1 ):
+                 num_datasets=1):
         # TODO - accept the options that DatasetDownloader does
         self.directory = directory
         self.num_datasets = num_datasets
         self.pidfile = pidfile
-
 
     def clean_directory(self):
         # also returns the latest dataset we have
@@ -951,7 +946,7 @@ class DownloadDaemon(object):
         """Start the daemon.
 
         This will cause the daemon to detach from the parent process and run in
-        the background. If the downloader is to run in the current process, use
+        the background. If the downloader is to run in the foreground, use
         ``run()`` instead.
         """
         logger.info("starting daemon")
@@ -1007,16 +1002,13 @@ class DownloadDaemon(object):
 
     def restart(self):
         """Restart the daemon."""
+        
         self.stop()
         self.start()
 
     def run(self):
-        """Run the daemon, downloading each wind dataset as it is published.
+        """Run the daemon in the foreground."""
 
-        This method should not ordinarily be called from outside the class. To
-        download a single dataset, use a `DatasetDownloader` directly. To start
-        the daemon with correct UNIX daemon behavior, use ``start()``.
-        """
         last_downloaded_dataset = self.clean_directory()
         latest_dataset = self._latest_dataset()
 
@@ -1153,7 +1145,7 @@ def main():
 
     fmtr = logging.Formatter(_format_string)
 
-    handler = logging.StreamHandler() # stderr
+    handler = logging.StreamHandler()  # stderr
     handler.setFormatter(fmtr)
     if args.verbose:
         handler.setLevel(logging.DEBUG)
@@ -1197,7 +1189,7 @@ def main():
                 d.close()
         elif args.subparser_name == 'daemon':
             download_daemon = DownloadDaemon(args.directory,
-                                              num_datasets=args.num_datasets)
+                                             num_datasets=args.num_datasets)
             if args.daemon_subparser_name == 'start':
                 download_daemon.start()
             elif args.daemon_subparser_name == 'stop':
