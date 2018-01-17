@@ -983,7 +983,7 @@ function ProgressBar($wrapper) {
 var services = {
     geolocation: {
         getIPPosition: function(callback) {
-            $.get('http://freegeoip.net/json/', null, function(data) {
+            $.get('https://freegeoip.net/json/', null, function(data) {
                 if (isNumber(data.latitude) && isNumber(data.longitude)) {
                     callback(new google.maps.LatLng(data.latitude, data.longitude));
                 }
