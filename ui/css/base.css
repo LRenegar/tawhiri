@@ -151,7 +151,7 @@ body {
     position: absolute;
     z-index: 100;
 
-    width: 350px;
+    width: 375px;
 
     background: white;
     opacity: 0.7;
@@ -248,10 +248,16 @@ body {
     width: 33.333333333%;
 }
 .col-sm-5 {
-    width: 41.666666666%;
+    width: 41.666666667%;
 }
 .col-sm-6 {
     width: 50%;
+}
+.col-sm-7 {
+    width: 58.333333333%;
+}
+.col-sm-8 {
+    width: 66.666666667%;
 }
 .col-sm-9 {
     width: 75%;

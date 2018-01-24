@@ -1,4 +1,13 @@
+PredictionModes = {
+    simple: "simple",
+    hourly: "hourly",
+    monteCarlo: "monteCarlo"
+};
+
 function Form($wrapper) {
+    const MODE_SIMPLE = 0;
+    const MODE_HOURLY = 1;
+    const MODE_MONTE_CARLO = 2;
     var _this = this;
     this.$wrapper = $wrapper;
     this.slidingPanel = new SlidingPanel(this.$wrapper);
@@ -104,6 +113,22 @@ function Form($wrapper) {
 
         _this.showLaunchDatetimeUTCPreview();
     };
+    this._updateNumberRuns = function() {
+        var predictionMode = $('#predictionMode').val();
+        var $numberRunsDiv = $('#number-runs');
+        var $numberRunsLabel = $('#selectNumberRunsLabel');
+        if (predictionMode == PredictionModes.simple) {
+            $numberRunsDiv.attr("hidden", "hidden");
+            $('#selectNumberRuns').val("1");
+        }
+        else {
+            $numberRunsDiv.attr("hidden", null);
+            $numberRunsLabel.html("Prediction Runs");
+        }
+
+
+    };
+
     this.setUpDatePicker = function() {
         var onSelectDate = function(dateTime) {
             $('#displayLaunchDate').html(dateTime.getDate() + ' ' +
@@ -176,17 +201,34 @@ function Form($wrapper) {
             $('#dateTimePicker-wrapper').collapse('toggle');
         });
     };
-    this.predict = function(predData, launchDatetime, hourly) {
+
+    /**
+     * Makes prediction calls to the API and updates the map with the results.
+     *
+     * @param predictorData An object containing key-value pairs of
+     *     prediction API parameters. See prediction API documentation for
+     *     details.
+     * @param firstLaunchDatetime {Date} A `Date` object representing the launch
+     *     time of the first run.
+     * @param predictionMode A sting representing the prediction mode
+     *     (`simple`, `hourly`, or `monteCarlo`).
+     * @param runs The number of prediction runs to request.
+     */
+    this.predict = function(predictorData, firstLaunchDatetime, predictionMode, runs) {
         map.reset();
         notifications.closeAllNotifications();
 
         var predictionCollection = new PredictionCollection();
         map.addPredictionCollection(predictionCollection);
-        for (var h = 0; h < hourly; h++) { // < so that we don't add additional hours
-            predData = $.extend({}, predData);
-            var d = new Date(launchDatetime.getTime() + (h * 60 * 60 * 1000)); // add h hours
-            predData.launch_datetime = d.toISOString();
-            predictionCollection.addRequest(predData, d.getTime());
+
+        var launchDatetime = new Date(firstLaunchDatetime.getTime());
+        for (var i = 0; i < runs; i++) { // < so that we don't add additional hours
+            predictorData = $.extend({}, predictorData);
+            if(predictionMode == PredictionModes.hourly) {
+                launchDatetime = new Date(firstLaunchDatetime.getTime() + (i * 60 * 60 * 1000)); // add i hours
+            }
+            predictorData.launch_datetime = launchDatetime.toISOString();
+            predictionCollection.addRequest(predictorData, launchDatetime.getTime());
         }
         _this.close();
     };
@@ -197,6 +239,10 @@ function Form($wrapper) {
         $('#inputLaunchMinute option[value=' + mins + ']').prop('selected', true);
         _this.showLaunchDatetimeUTCPreview();
     };
+
+    /**
+     * Sets up event handlers for the Form; called during initialization.
+     */
     this.setUpEventHandling = function() {
         // ajax submission
         $('#prediction-form').submit(function(event) {
@@ -223,23 +269,34 @@ function Form($wrapper) {
         // hour / minute time change
         $('#inputLaunchHour').on('change.validateMinutesHourly', _this._validateMinutesHourly);
         $('#inputLaunchMinute').on('change.validateMinutesHourly', _this._validateMinutesHourly);
+
+        var predictionMode = $('#predictionMode');
+        predictionMode.on("change.updateNumberRuns", _this._updateNumberRuns);
+        predictionMode.change(); // To set Prediction Runs div hidden or not
     };
+
+    /**
+     * Event handler for the submit button; submits user input to prediction API.
+     */
     this.submit = function() {
         var formData = _this.serializeToObject();
-        var reqParams = {};
+        var predictionParams = {};
 
         this.showLaunchDatetimeUTCPreview();
 
-        reqParams.profile = "standard_profile";
-        reqParams.launch_latitude  = formData.launch_latitude;
-        reqParams.launch_longitude = _this.wrapLongitude(formData.launch_longitude);
-        reqParams.launch_altitude  = _this.convertUnits(formData.launch_altitude, formData.unitLaunchAltitude);
+        predictionParams.profile = "standard_profile";
+        predictionParams.launch_latitude  = formData.launch_latitude;
+        predictionParams.launch_longitude = _this.wrapLongitude(formData.launch_longitude);
+        predictionParams.launch_altitude  = _this.convertUnits(formData.launch_altitude, formData.unitLaunchAltitude);
 
-        reqParams.ascent_rate     = _this.convertUnits(formData.ascent_rate,     formData.unitLaunchAscentRate);
-        reqParams.burst_altitude  = _this.convertUnits(formData.burst_altitude,  formData.unitLaunchBurstAlt);
-        reqParams.descent_rate    = _this.convertUnits(formData.descent_rate,    formData.unitLaunchDescentRate);
+        predictionParams.ascent_rate     = _this.convertUnits(formData.ascent_rate,     formData.unitLaunchAscentRate);
+        predictionParams.burst_altitude  = _this.convertUnits(formData.burst_altitude,  formData.unitLaunchBurstAlt);
+        predictionParams.descent_rate    = _this.convertUnits(formData.descent_rate,    formData.unitLaunchDescentRate);
+
+        predictionParams.physics_model = formData.physics_model;
+        predictionParams.monte_carlo = (formData.prediction_mode == PredictionModes.monteCarlo);
      
-        _this.predict(reqParams, _this.getSelectedLaunchDatetime(), formData.hourly);
+        _this.predict(predictionParams, _this.getSelectedLaunchDatetime(), formData.prediction_mode, formData.number_runs);
     };
     this.wrapLongitude = function(lon) {
         lon %= 360.0;
@@ -354,7 +411,9 @@ function Map($wrapper) {
     this.canvas = this.$canvas[0];
     this.markers = [];
     this.mapBounds = [];
-    this.predictions = [];
+    this.landingSites = [];
+    this.landingSiteHeatmap = null;
+    this.predictionCollections = [];
     this.hourlySlider = new HourlySlider();
     this.currentHourlyLaunchtime = null;
     this.isGpsTracking = false;
@@ -494,7 +553,7 @@ function Map($wrapper) {
         });
     };
     this.addPredictionCollection = function(predictionCollection) {
-        _this.predictions.push(predictionCollection);
+        _this.predictionCollections.push(predictionCollection);
     };
     this.toggleGpsTracker = function() {
         if (_this.isGpsTracking) {
@@ -645,11 +704,11 @@ function Map($wrapper) {
     };
     this.removeAllPredictions = function() {
         console.log('deleting all previous paths');
-        $.each(_this.predictions, function(key, prediction) {
-            prediction.remove();
+        $.each(_this.predictionCollections, function(key, predictionCollection) {
+            predictionCollection.remove();
         });
-        delete _this.predictions;
-        _this.predictions = [];
+        delete _this.predictionCollections;
+        _this.predictionCollections = [];
     };
     this.placeMarker = function(latLng) {
         _this.removeAllMarkers();
@@ -667,14 +726,14 @@ function Map($wrapper) {
     };
 
     this.getHourlySliderTooltip = function(launchtime) {
-        //console.log(value);
         try {
             var date = new Date(launchtime);
-            var path = _this.predictions[0].paths[launchtime].polyCenter.getPath(); // this should probably be abstracted slightly
+            var prediction = _this.predictionCollections[0].getPredictionByTime(launchtime);
+            var path = prediction.polyCenter.getPath(); // this should
+            // probably be abstracted slightly
             var len = path.getLength();
             var launch_latlng = path.getAt(0);
             var landing_latlng = path.getAt(len - 1);
-            //console.log(landing_latlng.lat(), landing_latlng.lng());
             return '<p>Launch: ' + date.toUTCString() +
                     '; at ' + launch_latlng.lat() + ', ' + launch_latlng.lng() +
                     '</p><p>Landing: ' + landing_latlng.lat() + ', ' +
@@ -687,8 +746,8 @@ function Map($wrapper) {
         //console.log(event);
         if (launchtime !== _this.currentHourlyLaunchtime) {
             _this.currentHourlyLaunchtime = launchtime;
-            $.each(_this.predictions, function(index, prediction) {
-                prediction.selectPathByTime(launchtime);
+            $.each(_this.predictionCollections, function(index, prediction) {
+                prediction.selectPredictionByTime(launchtime);
             });
         }
     };
@@ -696,6 +755,7 @@ function Map($wrapper) {
     this.init();
     return this;
 }
+
 function SlidingPanel($element) {
     var _this = this;
     this.$element = $element;

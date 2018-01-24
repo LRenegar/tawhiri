@@ -148,6 +148,46 @@
               <div class="col-sm-offset-3 col-sm-9" id="launchDatetimeUTCPreview"></div>
             </div>
 
+            <h4>Simulation Parameters</h4>
+            <div class="form-group ">
+              <label for="predictionMode" class="col-sm-6 control-label">Prediction Mode</label>
+              <div class="col-sm-6">
+                <div class="input-group">
+                  <select class="form-control" id="predictionMode" name="prediction_mode" required="required">
+                    <option value="simple">Simple</option>
+                    <option value="hourly">Hourly</option>
+                    <option value="monteCarlo">Monte Carlo</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="physicsModel" class="col-sm-6 control-label">Physics Model</label>
+              <div class="col-sm-6">
+                <div class="input-group">
+                  <select class="form-control" id="physicsModel" name="physics_model" required="required">
+                    <option>CUSF</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="form-group" id="number-runs" hidden="hidden">
+              <label for="selectNumberRuns" class="col-sm-6 control-label" id="selectNumberRunsLabel">Prediction Runs</label>
+              <div class="col-sm-4">
+                <select class="form-control" id="selectNumberRuns" name="number_runs" required="required">
+                  <option value="1" selected="selected">1</option>
+                  <option value="12">12</option>
+                  <option value="24">24</option>
+                  <option value="36">36</option>
+                  <option value="48">48</option>
+                  <option value="72">72</option>
+                  <option value="80">80</option>
+                  <option value="100">100</option>
+                  <option value="180">180</option>
+                </select>
+              </div>
+            </div>
+
             <h4>In flight parameters</h4>
             <div class="form-group ">
               <label for="inputLaunchAscentRate" class="col-sm-6 control-label">Ascent Rate</label>
@@ -199,24 +239,8 @@
             </div>
 
             <div class="form-group">
-              <div class="col-sm-12">
-                <label for="hourly" class="col-sm-3 control-label">Hourly</label>
-                <div class="col-sm-5">
-                  <select class="form-control" id="hourly" name="hourly" required="required">
-                    <option value="1" selected="selected">1</option>
-                    <option value="12">12</option>
-                    <option value="24">24</option>
-                    <option value="36">36</option>
-                    <option value="48">48</option>
-                    <option value="72">72</option>
-                    <option value="80">80</option>
-                    <option value="100">100</option>
-                    <option value="180">180</option>
-                  </select>
-                </div>
-                <div class="col-sm-4">
-                  <button type="submit" class="btn btn-success">Predict</button>
-                </div>
+              <div class="col-sm-4">
+                <button type="submit" class="btn btn-success">Predict</button>
               </div>
             </div>
           </form>
