@@ -30,10 +30,15 @@ from ruaumoko import Dataset as ElevationDataset
 
 app = Flask(__name__)
 
-API_VERSION = 1
+API_VERSION = "1.1"
 LATEST_DATASET_KEYWORD = "latest"
 PROFILE_STANDARD = "standard_profile"
 PROFILE_FLOAT = "float_profile"
+PHYSICS_MODEL_CUSF = "CUSF"
+
+ASCENT_RATE_STD_DEV_FRACTION = 0.2
+DESCENT_RATE_STD_DEV_FRACTION = 0.2
+BURST_ALTITUDE_STD_DEV_FRACTION = 0.07
 
 
 # Util functions ##############################################################
@@ -106,60 +111,99 @@ def parse_request(data):
     """
     Parse the request.
     """
-    req = {"version": API_VERSION}
+    request = {"version": API_VERSION}
 
     # Generic fields
-    req['launch_latitude'] = \
+    request['launch_latitude'] = \
         _extract_parameter(data, "launch_latitude", float,
                            validator=lambda x: -90 <= x <= 90)
-    req['launch_longitude'] = \
+    request['launch_longitude'] = \
         _extract_parameter(data, "launch_longitude", float,
                            validator=lambda x: 0 <= x < 360)
-    req['launch_datetime'] = \
+    request['launch_datetime'] = \
         _extract_parameter(data, "launch_datetime", _rfc3339_to_timestamp)
-    req['launch_altitude'] = \
+    request['launch_altitude'] = \
         _extract_parameter(data, "launch_altitude", float, ignore=True)
 
     # If no launch altitude provided, use Ruaumoko to look it up
-    if req['launch_altitude'] is None:
+    if request['launch_altitude'] is None:
         try:
-            req['launch_altitude'] = ruaumoko_ds().get(req['launch_latitude'],
-                                                       req['launch_longitude'])
+            request['launch_altitude'] = ruaumoko_ds().get(request['launch_latitude'],
+                                                       request['launch_longitude'])
         except Exception:
             raise InternalException("Internal exception experienced whilst " +
                                     "looking up 'launch_altitude'.")
 
+    launch_alt = request["launch_altitude"]
+
     # Prediction profile
-    req['profile'] = _extract_parameter(data, "profile", str,
-                                        PROFILE_STANDARD)
+    request['profile'] = _extract_parameter(data, "profile", str,
+                                            PROFILE_STANDARD)
 
-    launch_alt = req["launch_altitude"]
+    request['physics_model'] = _extract_parameter(data, "physics_model", str,
+                                                  default=PHYSICS_MODEL_CUSF)
 
-    if req['profile'] == PROFILE_STANDARD:
-        req['ascent_rate'] = _extract_parameter(data, "ascent_rate", float,
+    request['monte_carlo'] = _extract_parameter(data, "monte_carlo", bool,
+                                                default=False)
+
+    if request['profile'] == PROFILE_STANDARD:
+        if request['physics_model'] == PHYSICS_MODEL_CUSF:
+            request['ascent_rate'] = \
+                _extract_parameter(data, "ascent_rate", float,
+                                   validator=lambda x: x > 0)
+
+            request['burst_altitude'] = \
+                _extract_parameter(data, "burst_altitude", float,
+                                   validator=lambda x: x > launch_alt)
+
+            request['descent_rate'] = \
+                _extract_parameter(data, "descent_rate", float,
+                                   validator=lambda x: x > 0)
+
+            if request['monte_carlo']:
+                request['ascent_rate_std_dev'] = \
+                    _extract_parameter(data, "ascent_rate_std_dev", float,
+                                       default=ASCENT_RATE_STD_DEV_FRACTION
+                                       * request['ascent_rate'],
+                                       validator=lambda x: x > 0)
+
+                request['descent_rate_std_dev'] = \
+                    _extract_parameter(data, "descent_rate_std_dev", float,
+                                       default=DESCENT_RATE_STD_DEV_FRACTION
+                                       * request['descent_rate'],
+                                       validator=lambda x: x > 0)
+
+                request['burst_altitude_std_dev'] = \
+                    _extract_parameter(data, "burst_altitude_std_dev", float,
+                                       default=BURST_ALTITUDE_STD_DEV_FRACTION
+                                       * request['burst_altitude'],
+                                       validator=lambda x: x > 0)
+            else:
+                request['ascent_rate_std_dev'] = 0
+                request['descent_rate_std_dev'] = 0
+                request['burst_altitude_std_dev'] = 0
+
+        else:
+            raise RequestException(
+                "Unknown physics model '%s'." % request['physics_model'])
+
+    elif request['profile'] == PROFILE_FLOAT:
+        request['ascent_rate'] = _extract_parameter(data, "ascent_rate", float,
                                                 validator=lambda x: x > 0)
-        req['burst_altitude'] = \
-            _extract_parameter(data, "burst_altitude", float,
-                               validator=lambda x: x > launch_alt)
-        req['descent_rate'] = _extract_parameter(data, "descent_rate", float,
-                                                 validator=lambda x: x > 0)
-    elif req['profile'] == PROFILE_FLOAT:
-        req['ascent_rate'] = _extract_parameter(data, "ascent_rate", float,
-                                                validator=lambda x: x > 0)
-        req['float_altitude'] = \
+        request['float_altitude'] = \
             _extract_parameter(data, "float_altitude", float,
                                validator=lambda x: x > launch_alt)
-        req['stop_datetime'] = \
+        request['stop_datetime'] = \
             _extract_parameter(data, "stop_datetime", _rfc3339_to_timestamp,
-                               validator=lambda x: x > req['launch_datetime'])
+                               validator=lambda x: x > request['launch_datetime'])
     else:
-        raise RequestException("Unknown profile '%s'." % req['profile'])
+        raise RequestException("Unknown profile '%s'." % request['profile'])
 
     # Dataset
-    req['dataset'] = _extract_parameter(data, "dataset", _rfc3339_to_timestamp,
-                                        LATEST_DATASET_KEYWORD)
+    request['dataset'] = _extract_parameter(data, "dataset", _rfc3339_to_timestamp,
+                                            default=LATEST_DATASET_KEYWORD)
 
-    return req
+    return request
 
 
 def _extract_parameter(data, parameter, cast, default=None, ignore=False,
@@ -223,7 +267,10 @@ def run_prediction(req):
         stages = models.standard_profile(req['ascent_rate'],
                                          req['burst_altitude'],
                                          req['descent_rate'], tawhiri_ds,
-                                         ruaumoko_ds(), warningcounts)
+                                         ruaumoko_ds(), warningcounts,
+                                         req['ascent_rate_std_dev'],
+                                         req['burst_altitude_std_dev'],
+                                         req['descent_rate_std_dev'])
     elif req['profile'] == PROFILE_FLOAT:
         stages = models.float_profile(req['ascent_rate'],
                                       req['float_altitude'],

@@ -22,6 +22,7 @@ functions to combine models and termination conditions.
 
 import calendar
 import math
+from random import normalvariate
 
 from . import interpolate
 
@@ -159,7 +160,9 @@ def make_any_terminator(terminators):
 
 
 def standard_profile(ascent_rate, burst_altitude, descent_rate,
-                     wind_dataset, elevation_dataset, warningcounts):
+                     wind_dataset, elevation_dataset, warningcounts,
+                     ascent_rate_std_dev=0, burst_altitude_std_dev=0,
+                     descent_rate_std_dev=0):
     """Make a model chain for the standard high altitude balloon situation of
        ascent at a constant rate followed by burst and subsequent descent
        at terminal velocity under parachute with a predetermined sea level
@@ -171,12 +174,18 @@ def standard_profile(ascent_rate, burst_altitude, descent_rate,
        Returns a tuple of (model, terminator) pairs.
     """
 
+    ascent_rate = normalvariate(ascent_rate, ascent_rate_std_dev)
+    burst_altitude = normalvariate(burst_altitude, burst_altitude_std_dev)
+    descent_rate = normalvariate(descent_rate, descent_rate_std_dev)
+
     model_up = make_linear_model([make_constant_ascent(ascent_rate),
-                                  make_wind_velocity(wind_dataset, warningcounts)])
+                                  make_wind_velocity(wind_dataset,
+                                                     warningcounts)])
     term_up = make_burst_termination(burst_altitude)
 
     model_down = make_linear_model([make_drag_descent(descent_rate),
-                                    make_wind_velocity(wind_dataset, warningcounts)])
+                                    make_wind_velocity(wind_dataset,
+                                                       warningcounts)])
     term_down = make_elevation_data_termination(elevation_dataset)
 
     return ((model_up, term_up), (model_down, term_down))
