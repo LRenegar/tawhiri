@@ -1,6 +1,7 @@
 import sys
 import os
 import fnmatch
+import numpy as np
 from setuptools import setup, Extension
 
 try:
@@ -48,6 +49,7 @@ setup(
     zip_safe=False,
     entry_points=entry_points,
     ext_modules=ext_modules,
+    include_dirs=[np.get_include()],
     url='http://www.cusf.co.uk/wiki/tawhiri:start',
     license='GPLv3+',
     description='High Altitude Balloon Landing Prediction Software',
