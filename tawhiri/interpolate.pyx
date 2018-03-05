@@ -174,25 +174,25 @@ cdef long pick3(double hour, double lat, double lng, Lerp3[8] out) except -1:
     for a in lhour:
         for b in llat:
             for c in llng:
-                p = a.lerp * b.lerp * c.lerp
+                p = a.interpolation_weight * b.interpolation_weight * c.interpolation_weight
                 out[i] = Lerp3(a.index, b.index, c.index, p)
                 i += 1
 
     return 0
 
-cdef double interp3(dataset ds, Lerp3[8] lerps, long variable, long level):
+cdef double interp3(dataset_t ds, Lerp3[8] lerps, long variable, long level):
     cdef double r, v
 
     r = 0
     for i in range(8):
         lerp = lerps[i]
         v = ds[lerp.hour, level, variable, lerp.lat, lerp.lng]
-        r += v * lerp.lerp
+        r += v * lerp.interpolation_weight
 
     return r
 
 # Searches for the largest index lower than target, excluding the topmost level.
-cdef long search(dataset ds, Lerp3[8] lerps, double target):
+cdef long search(dataset_t ds, Lerp3[8] lerps, double target):
     cdef long lower, upper, mid
     cdef double test
     
@@ -208,8 +208,8 @@ cdef long search(dataset ds, Lerp3[8] lerps, double target):
 
     return lower
 
-cdef double interp4(dataset ds, Lerp3[8] lerps, Lerp1 alt_lerp, long variable):
+cdef double interp4(dataset_t ds, Lerp3[8] lerps, Lerp1 alt_lerp, long variable):
     lower = interp3(ds, lerps, variable, alt_lerp.index)
     # and we can infer what the other lerp1 is...
     upper = interp3(ds, lerps, variable, alt_lerp.index + 1)
-    return lower * alt_lerp.lerp + upper * (1 - alt_lerp.lerp)
+    return lower * alt_lerp.interpolation_weight + upper * (1 - alt_lerp.interpolation_weight)
