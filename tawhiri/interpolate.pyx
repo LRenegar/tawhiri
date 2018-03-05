@@ -186,7 +186,7 @@ cdef double interp3(dataset_t ds, Lerp3[8] lerps, long variable, long level):
     r = 0
     for i in range(8):
         lerp = lerps[i]
-        v = ds[lerp.hour, level, variable, lerp.lat, lerp.lng]
+        v = ds[lerp.hour, level, variable, lerp.latitude_index, lerp.longitude_index]
         r += v * lerp.interpolation_weight
 
     return r
