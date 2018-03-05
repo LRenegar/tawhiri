@@ -38,7 +38,10 @@ memory access.
 
 from magicmemoryview import MagicMemoryView
 from .warnings cimport WarningCounts
+import numpy as np
+from .dataset import Dataset
 
+cimport numpy as np
 
 # These need to match Dataset.axes.variable
 DEF VAR_A = 0
@@ -46,15 +49,15 @@ DEF VAR_U = 1
 DEF VAR_V = 2
 
 
-ctypedef float[:, :, :, :, :] dataset
+ctypedef float[:, :, :, :, :] dataset_t # TODO rename
 
 cdef struct Lerp1:
     long index
-    double lerp
+    double interpolation_weight
 
 cdef struct Lerp3:
-    long hour, lat, lng
-    double lerp
+    long hour, latitude_index, longitude_index
+    double interpolation_weight
 
 
 class RangeError(ValueError):
@@ -65,7 +68,7 @@ class RangeError(ValueError):
         super(RangeError, self).__init__(s)
 
 
-def make_interpolator(dataset, WarningCounts warnings):
+def make_interpolator(dataset, WarningCounts warnings, dataset_errors=None):
     """
     Produce a function that can get wind data from `dataset`
 
@@ -73,22 +76,33 @@ def make_interpolator(dataset, WarningCounts warnings):
     to us, and then returns a closure that can be used to retrieve
     wind velocities.
     """
+    if dataset_errors is not None:
+        assert dataset_errors.dtype == np.double
+
+        assert dataset_errors.shape == (Dataset.NUM_GFS_VARIABLES,
+                                       Dataset.NUM_GFS_LAT_STEPS,
+                                       Dataset.NUM_GFS_LNG_STEPS)
+    else:
+        dataset_errors = np.zeros((Dataset.NUM_GFS_VARIABLES,
+                                Dataset.NUM_GFS_LAT_STEPS,
+                                Dataset.NUM_GFS_LNG_STEPS))
 
     cdef float[:, :, :, :, :] data
 
     if warnings is None:
         raise TypeError("Warnings must not be None")
 
-    data = MagicMemoryView(dataset.array, (65, 47, 3, 361, 720), b"f")
+    data = MagicMemoryView(dataset.array, Dataset.shape, b"f")
 
     def f(hour, lat, lng, alt):
-        return get_wind(data, warnings, hour, lat, lng, alt)
+        return get_wind(data, dataset_errors, warnings, hour, lat, lng, alt)
 
     return f
 
 
-cdef object get_wind(dataset ds, WarningCounts warnings,
-                     double hour, double lat, double lng, double alt):
+cdef object get_wind(dataset_t ds, np.ndarray[np.double_t, ndim=3] dataset_errors,
+                     WarningCounts warnings, double hour, double lat,
+                     double lng, double alt):
     """
     Return [u, v] wind components for the given position.
     Time is in fractional hours since the dataset starts.
