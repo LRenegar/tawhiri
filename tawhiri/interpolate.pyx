@@ -120,7 +120,7 @@ cdef object get_wind(dataset_t ds, np.ndarray[np.double_t, ndim=3] dataset_error
 
     pick3(hour, lat, lng, lerps)
 
-    altitude_index = find_altitude_index(ds, lerps, alt)
+    altitude_index = find_altitude_index(ds, dataset_errors, lerps, alt)
     lower = interpolate_lat_lng_time(ds, dataset_errors, lerps, VAR_A, altitude_index)
     upper = interpolate_lat_lng_time(ds, dataset_errors, lerps, VAR_A, altitude_index + 1)
 
