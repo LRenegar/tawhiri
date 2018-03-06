@@ -120,9 +120,9 @@ cdef object get_wind(dataset_t ds, np.ndarray[np.double_t, ndim=3] dataset_error
 
     pick3(hour, lat, lng, lerps)
 
-    altitude_index = search(ds, lerps, alt)
-    lower = interpolate_lat_lng_time(ds, lerps, VAR_A, altitude_index)
-    upper = interpolate_lat_lng_time(ds, lerps, VAR_A, altitude_index + 1)
+    altitude_index = find_altitude_index(ds, lerps, alt)
+    lower = interpolate_lat_lng_time(ds, dataset_errors, lerps, VAR_A, altitude_index)
+    upper = interpolate_lat_lng_time(ds, dataset_errors, lerps, VAR_A, altitude_index + 1)
 
     if lower != upper:
         interpolation_weight = (upper - alt) / (upper - lower)
@@ -133,12 +133,8 @@ cdef object get_wind(dataset_t ds, np.ndarray[np.double_t, ndim=3] dataset_error
 
     cdef Lerp1 alt_lerp = Lerp1(altitude_index, interpolation_weight)
 
-    # TODO dataset_errors
-    # u = interp4(ds, dataset_errors, lerps, alt_lerp, VAR_U)
-    # v = interp4(ds, dataset_errors, lerps, alt_lerp, VAR_V)
-
-    u = interp4(ds, lerps, alt_lerp, VAR_U)
-    v = interp4(ds, lerps, alt_lerp, VAR_V)
+    u = interp4(ds, dataset_errors, lerps, alt_lerp, VAR_U)
+    v = interp4(ds, dataset_errors, lerps, alt_lerp, VAR_V)
 
     return u, v, 
 
@@ -203,7 +199,7 @@ cdef long pick3(double hour, double lat, double lng, Lerp3[8] out) except -1:
     return 0
 
 cdef double interpolate_lat_lng_time(dataset_t ds,
-                                     # np.ndarray[np.double_t, ndim=3] dataset_errors, # TODO
+                                     np.ndarray[np.double_t, ndim=3] dataset_errors,
                                      Lerp3[8] lerps, long variable,
                                      long level_index):
     """ 
@@ -218,26 +214,44 @@ cdef double interpolate_lat_lng_time(dataset_t ds,
     :param long level_index: The index of the pressure level to interpolate at. 
     :return: The value of the interpolated variable. 
     """
-    cdef double r, v
+    cdef double interpolated_value, dataset_value, dataset_error_val
 
-    r = 0
+    interpolated_value = 0
     for i in range(8):
         lerp = lerps[i]
-        v = ds[lerp.hour, level_index, variable, lerp.latitude_index, lerp.longitude_index]
-        r += v * lerp.interpolation_weight
+        dataset_value = ds[lerp.hour, level_index, variable,
+                           lerp.latitude_index, lerp.longitude_index]
+        dataset_error_val = dataset_errors[variable, lerp.latitude_index,
+                                           lerp.longitude_index]
+        # Interpolation value is weighted average of nearest dataset values
+        interpolated_value += \
+            dataset_value * lerp.interpolation_weight * (1.0 + dataset_error_val)
 
-    return r
+    return interpolated_value
+
 
 # Searches for the largest index lower than target, excluding the topmost level.
-cdef long search(dataset_t ds, Lerp3[8] lerps, double target):
+cdef long find_altitude_index(dataset_t ds,
+                              np.ndarray[np.double_t, ndim=3] dataset_errors,
+                              Lerp3[8] lerps, double target):
+    """ 
+    Search for the largest altitude index lower than the target, excluding the topmost level. 
+    :param dataset_t ds: The dataset to search. 
+    :param dataset_errors: TODO 
+    :param lerps: TODO 
+    :param target: The altitude to search for 
+    :return: The index of the highest altitude layer lower than the target that. 
+    """
+
+    # Searches for the largest index lower than target, excluding the topmost level.
     cdef long lower, upper, mid
     cdef double test
     
     lower, upper = 0, 45
 
-    while lower < upper:
+    while lower < upper: # Search by bisection
         mid = (lower + upper + 1) / 2
-        test = interpolate_lat_lng_time(ds, lerps, VAR_A, mid)
+        test = interpolate_lat_lng_time(ds, dataset_errors, lerps, VAR_A, mid)
         if target <= test:
             upper = mid - 1
         else:
@@ -245,8 +259,12 @@ cdef long search(dataset_t ds, Lerp3[8] lerps, double target):
 
     return lower
 
-cdef double interp4(dataset_t ds, Lerp3[8] lerps, Lerp1 alt_lerp, long variable):
-    lower = interpolate_lat_lng_time(ds, lerps, variable, alt_lerp.index)
+cdef double interp4(dataset_t ds,
+                    np.ndarray[np.double_t, ndim=3] dataset_errors,
+                    Lerp3[8] lerps,
+                    Lerp1 alt_lerp,
+                    long variable):
+    lower = interpolate_lat_lng_time(ds, dataset_errors, lerps, variable, alt_lerp.index)
     # and we can infer what the other lerp1 is...
-    upper = interpolate_lat_lng_time(ds, lerps, variable, alt_lerp.index + 1)
+    upper = interpolate_lat_lng_time(ds, dataset_errors, lerps, variable, alt_lerp.index + 1)
     return lower * alt_lerp.interpolation_weight + upper * (1 - alt_lerp.interpolation_weight)
