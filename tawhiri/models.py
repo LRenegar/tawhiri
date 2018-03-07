@@ -166,7 +166,7 @@ def make_any_terminator(terminators):
 def standard_profile(ascent_rate, burst_altitude, descent_rate,
                      wind_dataset, elevation_dataset, warningcounts,
                      ascent_rate_std_dev=0, burst_altitude_std_dev=0,
-                     descent_rate_std_dev=0):
+                     descent_rate_std_dev=0, wind_std_dev=0):
     """Make a model chain for the standard high altitude balloon situation of
        ascent at a constant rate followed by burst and subsequent descent
        at terminal velocity under parachute with a predetermined sea level
@@ -182,7 +182,7 @@ def standard_profile(ascent_rate, burst_altitude, descent_rate,
     burst_altitude = normalvariate(burst_altitude, burst_altitude_std_dev)
     descent_rate = normalvariate(descent_rate, descent_rate_std_dev)
 
-    dataset_error = generate_dataset_error(0.1)  # TODO magic number
+    dataset_error = generate_dataset_error(wind_std_dev)
 
     model_up = make_linear_model([make_constant_ascent(ascent_rate),
                                   make_wind_velocity(wind_dataset,

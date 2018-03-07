@@ -39,6 +39,7 @@ PHYSICS_MODEL_CUSF = "CUSF"
 ASCENT_RATE_STD_DEV_FRACTION = 0.2
 DESCENT_RATE_STD_DEV_FRACTION = 0.2
 BURST_ALTITUDE_STD_DEV_FRACTION = 0.07
+WIND_STD_DEV_FRACTION = 0.1
 
 
 # Util functions ##############################################################
@@ -165,23 +166,29 @@ def parse_request(data):
                     _extract_parameter(data, "ascent_rate_std_dev", float,
                                        default=ASCENT_RATE_STD_DEV_FRACTION
                                        * request['ascent_rate'],
-                                       validator=lambda x: x > 0)
+                                       validator=lambda x: x >= 0)
 
                 request['descent_rate_std_dev'] = \
                     _extract_parameter(data, "descent_rate_std_dev", float,
                                        default=DESCENT_RATE_STD_DEV_FRACTION
                                        * request['descent_rate'],
-                                       validator=lambda x: x > 0)
+                                       validator=lambda x: x >= 0)
 
                 request['burst_altitude_std_dev'] = \
                     _extract_parameter(data, "burst_altitude_std_dev", float,
                                        default=BURST_ALTITUDE_STD_DEV_FRACTION
                                        * request['burst_altitude'],
-                                       validator=lambda x: x > 0)
+                                       validator=lambda x: x >= 0)
+
+                request['wind_std_dev'] = \
+                    _extract_parameter(data, "wind_std_dev", float,
+                                       default=WIND_STD_DEV_FRACTION,
+                                       validator=lambda x: x >= 0)
             else:
                 request['ascent_rate_std_dev'] = 0
                 request['descent_rate_std_dev'] = 0
                 request['burst_altitude_std_dev'] = 0
+                request['wind_std_dev'] = 0
 
         else:
             raise RequestException(
