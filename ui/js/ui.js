@@ -118,12 +118,11 @@ function Form($wrapper) {
         var $numberRunsDiv = $('#number-runs');
         var $numberRunsLabel = $('#selectNumberRunsLabel');
         if (predictionMode == PredictionModes.simple) {
-            $numberRunsDiv.attr("hidden", "hidden");
+            $numberRunsDiv.slideUp(150);
             $('#selectNumberRuns').val("1");
         }
         else {
-            $numberRunsDiv.attr("hidden", null);
-            $numberRunsLabel.html("Prediction Runs");
+            $numberRunsDiv.slideDown(150);
         }
 
 
@@ -272,6 +271,16 @@ function Form($wrapper) {
 
         var predictionMode = $('#predictionMode');
         predictionMode.on("change.updateNumberRuns", _this._updateNumberRuns);
+        $('#predictionMode').on("change.updateMonteCarloParams", function(event) {
+            event.preventDefault();
+            if($('#predictionMode').val() == "monteCarlo" && $('#divMonteCarloParams').is(':hidden')) {
+                $('#divMonteCarloParams').slideDown(300);
+            }
+            else if($('#predictionMode').val() != "monteCarlo" && $('#divMonteCarloParams').is(':visible')) {
+                $('#divMonteCarloParams').slideUp(300);
+            }
+            return false;
+        });
         predictionMode.change(); // To set Prediction Runs div hidden or not
     };
 
@@ -295,6 +304,19 @@ function Form($wrapper) {
 
         predictionParams.physics_model = formData.physics_model;
         predictionParams.monte_carlo = (formData.prediction_mode == PredictionModes.monteCarlo);
+
+        if(predictionParams.monte_carlo) {
+            predictionParams.ascent_rate_std_dev = _this.convertUnits(formData.ascent_rate_param, formData.unitAscentRateParam);
+            predictionParams.descent_rate_std_dev = _this.convertUnits(formData.descent_rate_param, formData.unitDescentRateParam);
+            predictionParams.burst_altitude_std_dev = _this.convertUnits(formData.burst_alt_param, formData.unitBurstAltParam);
+            predictionParams.wind_std_dev = formData.wind_param;
+        }
+        else {
+            predictionParams.ascent_rate_std_dev = 0;
+            predictionParams.descent_rate_std_dev = 0;
+            predictionParams.burst_altitude_std_dev = 0;
+            predictionParams.wind_std_dev = 0;
+        }
      
         _this.predict(predictionParams, _this.getSelectedLaunchDatetime(), formData.prediction_mode, formData.number_runs);
     };
