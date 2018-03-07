@@ -277,7 +277,8 @@ def run_prediction(req):
                                          ruaumoko_ds(), warningcounts,
                                          req['ascent_rate_std_dev'],
                                          req['burst_altitude_std_dev'],
-                                         req['descent_rate_std_dev'])
+                                         req['descent_rate_std_dev'],
+                                         req['wind_std_dev'])
     elif req['profile'] == PROFILE_FLOAT:
         stages = models.float_profile(req['ascent_rate'],
                                       req['float_altitude'],
