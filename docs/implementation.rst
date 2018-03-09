@@ -42,9 +42,9 @@ Functions
 
 The function `pick3` selects the indices left and right of a given point in time, latitude and longitude (but *not* altitude: see below), and then returns an eight element array (via a C 'out' pointer): each element represents a corner, and contains its indices and its weight (the product of the three numbers between 0 and 1 which represent how close the point we want is to this corner along each axis). Note that the 8 weights will sum to 1. In the implementation, weights are stored in a variable called `lerp`.
 
-`interp3`, given the choices made by `pick3`, interpolates along the time, latitude and longitude axes, giving the value of a variable at any point on one of the pressure levels.
+`interpolate_lat_lng_time`, given the choices made by `pick3`, interpolates along the time, latitude and longitude axes, giving the value of a variable at any point on one of the pressure levels.
 
-`search` finds the two pressure levels between which the desired altitude lies. It calls `interp3` to get the altitude at a certain point on each pressure level. It uses binary search.
+`search` finds the two pressure levels between which the desired altitude lies. It calls `interpolate_lat_lng_time` to get the altitude at a certain point on each pressure level. It uses binary search.
 
 `interp4`, given the choices made by `pick3` and a weight / lerp to use for the altitude interpolation, interpolates along all four axes.
 
@@ -57,7 +57,7 @@ Overview
 
 * calls `pick3`,
 * calls `search`,
-* uses `interp3` to get the altitude on the pressure levels above and below the desired point,
+* uses `interpolate_lat_lng_time` to get the altitude on the pressure levels above and below the desired point,
 * calculates the weight / lerp value for interpolating along the altitude axis,
 * calls `interp4` to get the final “wind u” and “wind v” values.
 

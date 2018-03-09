@@ -12,3 +12,4 @@ loglog.png
 .coverage
 /*.conf
 .idea/
+*.swp

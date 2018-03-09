@@ -62,7 +62,14 @@ class Dataset(object):
     #: The dimensions of the dataset
     #:
     #: Note ``len(axes[i]) == shape[i]``.
-    shape = (65, 47, 3, 361, 720)
+    NUM_GFS_TIME_STEPS = 65
+    NUM_GFS_ALT_STEPS = 47
+    NUM_GFS_VARIABLES = 3
+    NUM_GFS_LAT_STEPS = 361
+    NUM_GFS_LNG_STEPS = 720
+
+    shape = (NUM_GFS_TIME_STEPS, NUM_GFS_ALT_STEPS, NUM_GFS_VARIABLES,
+             NUM_GFS_LAT_STEPS, NUM_GFS_LNG_STEPS)
 
     # TODO: use the other levels too?
     # {10, 80, 100}m heightAboveGround (u, v)

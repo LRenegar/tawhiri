@@ -21,9 +21,13 @@ functions to combine models and termination conditions.
 """
 
 import calendar
+import itertools
 import math
+import numpy as np
+from random import normalvariate, uniform
 
 from . import interpolate
+from .dataset import Dataset
 
 
 _PI_180 = math.pi / 180.0
@@ -73,12 +77,13 @@ def make_drag_descent(sea_level_descent_rate):
 ## Sideways Models ############################################################
 
 
-def make_wind_velocity(dataset, warningcounts):
+def make_wind_velocity(dataset, warningcounts, dataset_errors=None):
     """Return a wind-velocity model, which gives lateral movement at
        the wind velocity for the current time, latitude, longitude and
        altitude. The `dataset` argument is the wind dataset in use.
     """
-    get_wind = interpolate.make_interpolator(dataset, warningcounts)
+    get_wind = interpolate.make_interpolator(dataset, warningcounts,
+                                             dataset_errors)
     dataset_epoch = calendar.timegm(dataset.ds_time.timetuple())
     def wind_velocity(t, lat, lng, alt):
         t -= dataset_epoch
@@ -159,7 +164,9 @@ def make_any_terminator(terminators):
 
 
 def standard_profile(ascent_rate, burst_altitude, descent_rate,
-                     wind_dataset, elevation_dataset, warningcounts):
+                     wind_dataset, elevation_dataset, warningcounts,
+                     ascent_rate_std_dev=0, burst_altitude_std_dev=0,
+                     descent_rate_std_dev=0, wind_std_dev=0):
     """Make a model chain for the standard high altitude balloon situation of
        ascent at a constant rate followed by burst and subsequent descent
        at terminal velocity under parachute with a predetermined sea level
@@ -171,12 +178,21 @@ def standard_profile(ascent_rate, burst_altitude, descent_rate,
        Returns a tuple of (model, terminator) pairs.
     """
 
+    ascent_rate = normalvariate(ascent_rate, ascent_rate_std_dev)
+    burst_altitude = normalvariate(burst_altitude, burst_altitude_std_dev)
+    descent_rate = normalvariate(descent_rate, descent_rate_std_dev)
+
+    dataset_error = generate_dataset_error(wind_std_dev)
+
     model_up = make_linear_model([make_constant_ascent(ascent_rate),
-                                  make_wind_velocity(wind_dataset, warningcounts)])
+                                  make_wind_velocity(wind_dataset,
+                                                     warningcounts,
+                                                     dataset_error)])
     term_up = make_burst_termination(burst_altitude)
 
     model_down = make_linear_model([make_drag_descent(descent_rate),
-                                    make_wind_velocity(wind_dataset, warningcounts)])
+                                    make_wind_velocity(wind_dataset,
+                                                       warningcounts)])
     term_down = make_elevation_data_termination(elevation_dataset)
 
     return ((model_up, term_up), (model_down, term_down))
@@ -195,3 +211,18 @@ def float_profile(ascent_rate, float_altitude, stop_time, dataset, warningcounts
     term_float = make_time_termination(stop_time)
 
     return ((model_up, term_up), (model_float, term_float))
+
+
+def generate_dataset_error(max_wind_deviation):
+    dataset_error = np.zeros((Dataset.NUM_GFS_VARIABLES,
+                            Dataset.NUM_GFS_LAT_STEPS,
+                            Dataset.NUM_GFS_LNG_STEPS))
+
+    for var_index, lat_index, lng_index in itertools.product(
+            range(1, Dataset.NUM_GFS_VARIABLES),  # TODO magic number
+            range(Dataset.NUM_GFS_LAT_STEPS),
+            range(Dataset.NUM_GFS_LNG_STEPS)):
+        dataset_error[var_index, lat_index, lng_index] =\
+            uniform(-max_wind_deviation, max_wind_deviation)
+
+    return dataset_error

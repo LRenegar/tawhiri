@@ -148,61 +148,34 @@
               <div class="col-sm-offset-3 col-sm-9" id="launchDatetimeUTCPreview"></div>
             </div>
 
-            <h4>In flight parameters</h4>
-            <div class="form-group ">
-              <label for="inputLaunchAscentRate" class="col-sm-6 control-label">Ascent Rate</label>
-              <div class="col-sm-6">
-                <div class="input-group">
-                  <input type="number" step="any" min="0" class="form-control" id="inputLaunchAscentRate" name="ascent_rate" value="5" placeholder="" required="required">
-                  <div class="input-group-btn unit-selection">         
-                    <input type="hidden" name="unitLaunchAscentRate" value="m/s"/>
-                    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m/s</span> <span class="caret"></span></button>
-                    <ul class="dropdown-menu pull-right">
-                      <li><a href="#">m/s</a></li>
-                      <li><a href="#">ft/s</a></li>
-                    </ul>
-                  </div><!-- /btn-group -->
+            <div>
+              <h4>Simulation Parameters</h4>
+              <div class="form-group ">
+                <label for="predictionMode" class="col-sm-6 control-label">Prediction Mode</label>
+                <div class="col-sm-6">
+                  <div class="input-group">
+                    <select class="form-control" id="predictionMode" name="prediction_mode" required="required">
+                      <option value="simple">Simple</option>
+                      <option value="hourly">Hourly</option>
+                      <option value="monteCarlo">Monte Carlo</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="form-group ">
-              <label for="inputLaunchBurstAlt" class="col-sm-5 control-label">Burst Alt</label>
-              <div class="col-sm-7">
-                <div class="input-group">
-                  <input type="number" step="any" class="form-control" id="inputLaunchBurstAlt" name="burst_altitude" value="30000" placeholder="" required="required">
-                  <div class="input-group-btn unit-selection">    
-                    <input type="hidden" name="unitLaunchBurstAlt" value="m"/>
-                    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m</span> <span class="caret"></span></button>
-                    <ul class="dropdown-menu pull-right">
-                      <li><a href="#">m</a></li>
-                      <li><a href="#">ft</a></li>
-                    </ul>
-                  </div><!-- /btn-group -->
+              <div class="form-group">
+                <label for="physicsModel" class="col-sm-6 control-label">Physics Model</label>
+                <div class="col-sm-6">
+                  <div class="input-group">
+                    <select class="form-control" id="physicsModel" name="physics_model" required="required">
+                      <option>CUSF</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="form-group ">
-              <label for="inputLaunchDescentRate" class="col-sm-6 control-label">Descent Rate</label>
-              <div class="col-sm-6">
-                <div class="input-group">
-                  <input type="number" step="any" min="0" class="form-control" id="inputLaunchDescentRate" name="descent_rate" value="5" placeholder="" required="required">
-                  <div class="input-group-btn unit-selection">  
-                    <input type="hidden" name="unitLaunchDescentRate" value="m/s"/>
-                    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m/s</span> <span class="caret"></span></button>
-                    <ul class="dropdown-menu pull-right">
-                      <li><a href="#">m/s</a></li>
-                      <li><a href="#">ft/s</a></li>
-                    </ul>
-                  </div><!-- /btn-group -->
-                </div>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <div class="col-sm-12">
-                <label for="hourly" class="col-sm-3 control-label">Hourly</label>
-                <div class="col-sm-5">
-                  <select class="form-control" id="hourly" name="hourly" required="required">
+              <div class="form-group" id="number-runs" hidden="hidden">
+                <label for="selectNumberRuns" class="col-sm-6 control-label" id="selectNumberRunsLabel">Prediction Runs</label>
+                <div class="col-sm-4">
+                  <select class="form-control" id="selectNumberRuns" name="number_runs" required="required">
                     <option value="1" selected="selected">1</option>
                     <option value="12">12</option>
                     <option value="24">24</option>
@@ -214,10 +187,129 @@
                     <option value="180">180</option>
                   </select>
                 </div>
-                <div class="col-sm-4">
-                  <button type="submit" class="btn btn-success">Predict</button>
+              </div>
+            </div>
+
+            <div>
+              <h4>In flight parameters</h4>
+              <div class="form-group ">
+                <label for="inputLaunchAscentRate" class="col-sm-6 control-label">Ascent Rate</label>
+                <div class="col-sm-6">
+                  <div class="input-group">
+                    <input type="number" step="any" min="0" class="form-control" id="inputLaunchAscentRate" name="ascent_rate" value="5" placeholder="" required="required">
+                    <div class="input-group-btn unit-selection">
+                      <input type="hidden" name="unitLaunchAscentRate" value="m/s"/>
+                      <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m/s</span> <span class="caret"></span></button>
+                      <ul class="dropdown-menu pull-right">
+                        <li><a href="#">m/s</a></li>
+                        <li><a href="#">ft/s</a></li>
+                      </ul>
+                    </div><!-- /btn-group -->
+                  </div>
                 </div>
               </div>
+              <div class="form-group ">
+                <label for="inputLaunchBurstAlt" class="col-sm-5 control-label">Burst Alt</label>
+                <div class="col-sm-7">
+                  <div class="input-group">
+                    <input type="number" step="any" class="form-control" id="inputLaunchBurstAlt" name="burst_altitude" value="30000" placeholder="" required="required">
+                    <div class="input-group-btn unit-selection">
+                      <input type="hidden" name="unitLaunchBurstAlt" value="m"/>
+                      <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m</span> <span class="caret"></span></button>
+                      <ul class="dropdown-menu pull-right">
+                        <li><a href="#">m</a></li>
+                        <li><a href="#">ft</a></li>
+                      </ul>
+                    </div><!-- /btn-group -->
+                  </div>
+                </div>
+              </div>
+              <div class="form-group ">
+                <label for="inputLaunchDescentRate" class="col-sm-6 control-label">Descent Rate</label>
+                <div class="col-sm-6">
+                  <div class="input-group">
+                    <input type="number" step="any" min="0" class="form-control" id="inputLaunchDescentRate" name="descent_rate" value="5" placeholder="" required="required">
+                    <div class="input-group-btn unit-selection">
+                      <input type="hidden" name="unitLaunchDescentRate" value="m/s"/>
+                      <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m/s</span> <span class="caret"></span></button>
+                      <ul class="dropdown-menu pull-right">
+                        <li><a href="#">m/s</a></li>
+                        <li><a href="#">ft/s</a></li>
+                      </ul>
+                    </div><!-- /btn-group -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div hidden="true" id="divMonteCarloParams">
+              <h4>Monte Carlo Parameters</h4>
+              <div class="form-group ">
+                <label for="inputBurstAltParam" class="col-sm-6 control-label">Burst Alt Std. Deviation</label>
+                <div class="col-sm-6">
+                  <div class="input-group">
+                    <input type="number" step="any" min="0" class="form-control" id="inputBurstAltParam" name="burst_alt_param" value="0.1" placeholder="" required="required">
+                    <div class="input-group-btn unit-selection">
+                      <input type="hidden" name="unitBurstAltParam" value="m"/>
+                      <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m</span> <span class="caret"></span></button>
+                      <ul class="dropdown-menu pull-right">
+                        <li><a href="#">m</a></li>
+                        <li><a href="#">ft</a></li>
+                      </ul>
+                    </div><!-- /btn-group -->
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group ">
+                <label for="inputAscentRateParam" class="col-sm-6 control-label">Ascent Rate Std. Deviation</label>
+                <div class="col-sm-6">
+                  <div class="input-group">
+                    <input type="number" step="any" min="0" class="form-control" id="inputAscentRateParam" name="ascent_rate_param" value="0.1" placeholder="" required="required">
+                    <div class="input-group-btn unit-selection">
+                      <input type="hidden" name="unitAscentRateParam" value="m/s"/>
+                      <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m/s</span> <span class="caret"></span></button>
+                      <ul class="dropdown-menu pull-right">
+                        <li><a href="#">m/s</a></li>
+                        <li><a href="#">ft/s</a></li>
+                      </ul>
+                    </div><!-- /btn-group -->
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group ">
+                <label for="inputDescentRateParam" class="col-sm-6 control-label">Descent Rate Std. Deviation</label>
+                <div class="col-sm-6">
+                  <div class="input-group">
+                    <input type="number" step="any" min="0" class="form-control" id="inputDescentRateParam" name="descent_rate_param" value="0.1" placeholder="" required="required">
+                    <div class="input-group-btn unit-selection">
+                      <input type="hidden" name="unitDescentRateParam" value="m/s"/>
+                      <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m/s</span> <span class="caret"></span></button>
+                      <ul class="dropdown-menu pull-right">
+                        <li><a href="#">m/s</a></li>
+                        <li><a href="#">ft/s</a></li>
+                      </ul>
+                    </div><!-- /btn-group -->
+                  </div>
+                </div>
+              </div>
+              <div class="form-group ">
+                <label for="inputWindParam" class="col-sm-6 control-label">Wind Parameter</label>
+                <div class="col-sm-6">
+                  <div class="input-group">
+                    <input type="number" step="any" min="0" class="form-control" id="inputWindParam" name="wind_param" value="0.1" placeholder="" required="required">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <div class="col-sm-4">
+                <button type="submit" class="btn btn-success">Predict</button>
+              </div>
+            </div>
+            <div class="form-group"> <!--Padding to keep unit dropdown from overunning the page-->
             </div>
           </form>
         </div>

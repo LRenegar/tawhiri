@@ -3,9 +3,13 @@ function Prediction(data) {
 
     this.predData = data.prediction;
     this.launchTime = data.launchTime;
-    this.pathCollection = [];
+    this.pathCollection = []; // TODO this isn't a great name, since it also
+        // includes markers
     this.polyCenter = null;
     this.polyOverlay = null;
+    this.launchCoordinates = null;
+    this.burstCoordinates = null;
+    this.landingCoordinates = null;
 
     this.init = function() {
         var poly = new google.maps.Polyline(MapObjects.pathCenterUnselected);
@@ -39,20 +43,21 @@ function Prediction(data) {
         _this.polyOverlay = polyw;
 
         var ascent = stages.ascent.trajectory;
-        var launch = ascent[0];
-        var burst = ascent[ascent.length - 1];
         var descent = stages.descent.trajectory;
-        var landing = descent[descent.length - 1];
+
+        _this.launchCoordinates = ascent[0];
+        _this.burstCoordinates = ascent[ascent.length - 1];
+        _this.landingCoordinates = descent[descent.length - 1];
 
         _this.pathCollection.push(new google.maps.Marker({
-            position: new google.maps.LatLng(launch.latitude, launch.longitude),
+            position: new google.maps.LatLng(_this.launchCoordinates.latitude, _this.launchCoordinates.longitude),
             icon: MapObjects.upArrow,
             map: map.map,
             title: 'Launch position'
         }));
 
         _this.pathCollection.push(new google.maps.Marker({
-            position: new google.maps.LatLng(landing.latitude, landing.longitude),
+            position: new google.maps.LatLng(_this.landingCoordinates.latitude, _this.landingCoordinates.longitude),
             icon: MapObjects.landCircle,
             map: map.map,
             title: 'Landing position',
@@ -60,7 +65,7 @@ function Prediction(data) {
         }));
 
         _this.pathCollection.push(new google.maps.Marker({
-            position: new google.maps.LatLng(burst.latitude, burst.longitude),
+            position: new google.maps.LatLng(_this.burstCoordinates.latitude, _this.burstCoordinates.longitude),
             icon: MapObjects.burstCircle,
             map: map.map,
             title: 'Burst position',
@@ -70,6 +75,9 @@ function Prediction(data) {
         return true;
     };
 
+    /**
+     * Dims the prediction on the map and hides the markers.
+     */
     this.dim = function() {
         for (var j = 0; j < _this.pathCollection.length; j++) {
             // hide eveything, including markers
@@ -79,6 +87,10 @@ function Prediction(data) {
         _this.polyCenter.setOptions(MapObjects.pathCenterUnselected);
         _this.polyOverlay.setOptions(MapObjects.pathOverlayUnselected);
     };
+
+    /**
+     * Highlights the prediction on the map and shows the markers.
+     */
     this.unDim = function() {
         for (var j = 0; j < _this.pathCollection.length; j++) {
             // make everything visible
@@ -93,11 +105,12 @@ function Prediction(data) {
 }
 
 // A collection of "requests": there may be multiple requests for one
-// prediction if the user has asked for multiple "hourly" predictions.
+// prediction if the user has asked for multiple "hourly" predictionCollections.
 function PredictionCollection(predData) {
     var _this = this;
     this.predData = predData;
-    this.paths = {}; // time value: path
+    this.predictionIndicies = {}; // time value: index
+    this.predictions = []; // time value: path
     this.selectedPathLaunchtime = null;
     this.runningRequests = 0;
     this.totalResponsesExpected = 0;
@@ -116,8 +129,11 @@ function PredictionCollection(predData) {
             notifications.error('Request failed.');
         } else {
             // success, make a path
-            _this.paths[data.launchTime] = new Prediction(data);
+            var prediction = new Prediction(data);
+            _this.predictionIndicies[data.launchTime] = _this.predictions.push(prediction) - 1;
             map.hourlySlider.registerTime(data.launchTime);
+            map.landingSites.push(new google.maps.LatLng(prediction.landingCoordinates.latitude,
+                prediction.landingCoordinates.longitude));
         }
 
         if (_this.progressBar.isAnimated) {
@@ -140,22 +156,25 @@ function PredictionCollection(predData) {
     };
 
     this.dimAllPaths = function() {
-        $.each(_this.paths, function(launchtime, path) {
-            path.dim();
+        $.each(_this.predictions, function(launchtime, prediction) {
+            prediction.dim();
         });
     };
-    this.selectPathByTime = function(launchtime) {
-        //console.log(launchtime, _this.selectedPathLaunchtime, _this.paths[launchtime]);
+    this.getPredictionByTime = function(launchtime) {
+        return _this.predictions[_this.predictionIndicies[launchtime]];
+    };
+    this.selectPredictionByTime = function(launchtime) {
         if (_this.selectedPathLaunchtime !== null) {
             if (_this.selectedPathLaunchtime === launchtime) {
                 return;
             }
-            _this.paths[_this.selectedPathLaunchtime].dim();
+            _this.predictions[_this.predictionIndicies[_this.selectedPathLaunchtime]].dim();
         } else {
             _this.dimAllPaths();
         }
-        if (_this.paths[launchtime] !== undefined) {
-            _this.paths[launchtime].unDim();
+
+        if (_this.predictions[_this.predictionIndicies[launchtime]] !== undefined) {
+            _this.predictions[_this.predictionIndicies[launchtime]].unDim();
             _this.selectedPathLaunchtime = launchtime;
         } else {
             _this.selectedPathLaunchtime = null;
@@ -163,14 +182,15 @@ function PredictionCollection(predData) {
     };
 
     this.remove = function() {
-        $.each(_this.paths, function(launchtime, path) {
+        $.each(_this.predictions, function(index, path) {
             if (path.pathCollection) {
                 for (var j = 0; j < path.pathCollection.length; j++) {
                     path.pathCollection[j].setMap(null);
                 }
             }
         });
-        delete _this.paths;
+        delete _this.predictions;
+        delete _this.predictionIndicies;
     };
 
     this.init();
@@ -187,7 +207,7 @@ function PredictionCollection(predData) {
 //  { prediction: <object>, requestParameters: <object>, launchTime: int }
 // giving the returned prediction data.
 function request_prediction(reqParams, launchtime, callback) {
-    var api_url = '/api/v1/',
+    var api_url = '/api/v1.1/',
         statusPollInterval = 1000, //ms
         statusCheckTimeout = 15000, //ms
         predData = null;
