@@ -91,7 +91,8 @@ def make_checklist():
 
 _grib_name_to_variable = {"Geopotential Height": "height",
                           "U component of wind": "wind_u",
-                          "V component of wind": "wind_v"}
+                          "V component of wind": "wind_v",
+                          "Temperature": "temperature"}
 
 
 def unpack_grib(filename, dataset=None, checklist=None, gribmirror=None,
