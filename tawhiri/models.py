@@ -82,12 +82,13 @@ def make_wind_velocity(dataset, warningcounts, dataset_errors=None):
        the wind velocity for the current time, latitude, longitude and
        altitude. The `dataset` argument is the wind dataset in use.
     """
-    get_wind = interpolate.make_interpolator(dataset, warningcounts,
-                                             dataset_errors)
+    get_atmospheric_state = interpolate.make_interpolator(dataset,
+                                                          warningcounts,
+                                                          dataset_errors)
     dataset_epoch = calendar.timegm(dataset.ds_time.timetuple())
     def wind_velocity(t, lat, lng, alt):
         t -= dataset_epoch
-        u, v = get_wind(t / 3600.0, lat, lng, alt)
+        u, v = get_atmospheric_state(t / 3600.0, lat, lng, alt)[0:2]
         R = 6371009 + alt
         dlat = _180_PI * v / R
         dlng = _180_PI * u / (R * math.cos(lat * _PI_180))

@@ -47,6 +47,7 @@ cimport numpy as np
 DEF VAR_A = 0
 DEF VAR_U = 1
 DEF VAR_V = 2
+DEF VAR_T = 3
 
 
 ctypedef float[:, :, :, :, :] dataset_t # TODO rename
@@ -95,23 +96,27 @@ def make_interpolator(dataset, WarningCounts warnings, dataset_errors=None):
     data = MagicMemoryView(dataset.array, Dataset.shape, b"f")
 
     def f(hour, lat, lng, alt):
-        return get_wind(data, dataset_errors, warnings, hour, lat, lng, alt)
+        return get_atmospheric_state(data, dataset_errors, warnings, hour, lat, lng, alt)
 
     return f
 
 
-cdef object get_wind(dataset_t ds, np.ndarray[np.double_t, ndim=3] dataset_errors,
-                     WarningCounts warnings, double hour, double lat,
-                     double lng, double alt):
+cdef object get_atmospheric_state(dataset_t ds,
+                                 np.ndarray[np.double_t, ndim=3] dataset_errors,
+                                 WarningCounts warnings, double hour,
+                                 double lat, double lng, double alt):
     """
-    Return [u, v] wind components for the given position.
-    Time is in fractional hours since the dataset starts.
-    Alt is metres above sea level.
-    Lat is latitude in decimal degrees, -90 to +90.
-    Lng is longitude in decimal degrees, 0 to 360.
-
-    Returned coordinates are interpolated from the surrounding grid
-    points in time, latitude, longitude and altitude.
+    Interpolates the [u, v] wind components and temperature at the given time and location, using
+    the given errors.
+    
+    :param ds: The float array representing the dataset.
+    :param dataset_errors: The float array representing the multiplicative dataset error factors.
+    :param warnings: The warning accumulator
+    :param hour: The hour at which to get the atmospheric data, in fractional hours since the dataset start
+    :param lat: The latitude at which to get the atmospheric data, in decimal degrees (-90 to 90)
+    :param lng: The longitude at which to get the atmospheric data, in decimal degrees (0 to 360)
+    :param alt: The altitude at which to get the atmospheric data, in meters above sea level
+    :return: The interpolated [u, v] wind components, in meters/second, and temperature, in Kelvin
     """
 
     cdef Lerp3[8] lerps
@@ -135,8 +140,9 @@ cdef object get_wind(dataset_t ds, np.ndarray[np.double_t, ndim=3] dataset_error
 
     u = interp4(ds, dataset_errors, lerps, alt_lerp, VAR_U)
     v = interp4(ds, dataset_errors, lerps, alt_lerp, VAR_V)
+    t = interp4(ds, dataset_errors, lerps, alt_lerp, VAR_T)
 
-    return u, v, 
+    return u, v, t
 
 cdef long pick(double left, double step_size, long num_steps, double value,
                object variable_name, Lerp1[2] out) except -1:

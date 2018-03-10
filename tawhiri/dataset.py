@@ -64,7 +64,7 @@ class Dataset(object):
     #: Note ``len(axes[i]) == shape[i]``.
     NUM_GFS_TIME_STEPS = 65
     NUM_GFS_ALT_STEPS = 47
-    NUM_GFS_VARIABLES = 3
+    NUM_GFS_VARIABLES = 4
     NUM_GFS_LAT_STEPS = 361
     NUM_GFS_LNG_STEPS = 720
 
@@ -97,7 +97,7 @@ class Dataset(object):
     axes = _axes_type(
         range(0, 192 + 3, 3),
         sorted(pressures_pgrb2f + pressures_pgrb2bf, reverse=True),
-        ["height", "wind_u", "wind_v"],
+        ["height", "wind_u", "wind_v", "temperature"],
         [x/2.0 for x in range(-180, 180 + 1)],
         [x/2.0 for x in range(0, 720)]
     )
