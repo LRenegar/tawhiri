@@ -30,7 +30,7 @@ from ruaumoko import Dataset as ElevationDataset
 
 app = Flask(__name__)
 
-API_VERSION = "1.1"
+API_VERSION = "1.2"
 LATEST_DATASET_KEYWORD = "latest"
 PROFILE_STANDARD = "standard_profile"
 PROFILE_FLOAT = "float_profile"

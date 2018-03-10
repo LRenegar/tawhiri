@@ -207,7 +207,7 @@ function PredictionCollection(predData) {
 //  { prediction: <object>, requestParameters: <object>, launchTime: int }
 // giving the returned prediction data.
 function request_prediction(reqParams, launchtime, callback) {
-    var api_url = '/api/v1.1/',
+    var api_url = '/api/v1.2/',
         statusPollInterval = 1000, //ms
         statusCheckTimeout = 15000, //ms
         predData = null;
