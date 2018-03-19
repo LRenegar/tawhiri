@@ -40,6 +40,7 @@ from magicmemoryview import MagicMemoryView
 from .warnings cimport WarningCounts
 import numpy as np
 from .dataset import Dataset
+from math import exp, log
 
 cimport numpy as np
 
@@ -106,7 +107,7 @@ cdef object get_atmospheric_state(dataset_t ds,
                                  WarningCounts warnings, double hour,
                                  double lat, double lng, double alt):
     """
-    Interpolates the [u, v] wind components and temperature at the given time and location, using
+    Interpolates the [u, v] wind components, temperature, and pressure at the given time and location, using
     the given errors.
     
     :param ds: The float array representing the dataset.
@@ -116,7 +117,7 @@ cdef object get_atmospheric_state(dataset_t ds,
     :param lat: The latitude at which to get the atmospheric data, in decimal degrees (-90 to 90)
     :param lng: The longitude at which to get the atmospheric data, in decimal degrees (0 to 360)
     :param alt: The altitude at which to get the atmospheric data, in meters above sea level
-    :return: The interpolated [u, v] wind components, in meters/second, and temperature, in Kelvin
+    :return: The interpolated [u, v] wind components, in meters/second, temperature, in Kelvin, and pressure, in millibar
     """
 
     cdef Lerp3[8] lerps
@@ -142,7 +143,11 @@ cdef object get_atmospheric_state(dataset_t ds,
     v = interp4(ds, dataset_errors, lerps, alt_lerp, VAR_V)
     t = interp4(ds, dataset_errors, lerps, alt_lerp, VAR_T)
 
-    return u, v, t
+    p = interp_exponential(Dataset.pressures_sorted[altitude_index],
+                           Dataset.pressures_sorted[altitude_index + 1],
+                           interpolation_weight)
+
+    return u, v, t, p
 
 cdef long pick(double left, double step_size, long num_steps, double value,
                object variable_name, Lerp1[2] out) except -1:
@@ -274,3 +279,14 @@ cdef double interp4(dataset_t ds,
     # and we can infer what the other lerp1 is...
     upper = interpolate_lat_lng_time(ds, dataset_errors, lerps, variable, alt_lerp.index + 1)
     return lower * alt_lerp.interpolation_weight + upper * (1 - alt_lerp.interpolation_weight)
+
+cdef double interp_exponential(double lower, double upper,
+                            double interpolation_weight):
+    """
+    Interpolates between two values based on an exponential curve fit between them
+    :param lower: The lower of the values to interpolate between
+    :param upper: The upper of the values to interpolate between
+    :param interpolation_weight: The interpolation weight
+    :return: The interpolated value
+    """
+    return lower*exp(log(upper/lower)*interpolation_weight)

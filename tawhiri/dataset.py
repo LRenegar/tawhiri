@@ -86,6 +86,8 @@ class Dataset(object):
     pressures_pgrb2bf = [1, 2, 3, 5, 7, 125, 175, 225, 275, 325, 375, 425,
                          475, 525, 575, 625, 675, 725, 775, 825, 875]
 
+    pressures_sorted = sorted(pressures_pgrb2f + pressures_pgrb2bf, reverse=True)
+
     _axes_type = namedtuple("axes",
                 ("hour", "pressure", "variable", "latitude", "longitude"))
 
@@ -96,7 +98,7 @@ class Dataset(object):
     #: cells ``dataset.array[a][4][b][c][d]`` correspond to data at 900mb.
     axes = _axes_type(
         range(0, 192 + 3, 3),
-        sorted(pressures_pgrb2f + pressures_pgrb2bf, reverse=True),
+        pressures_sorted,
         ["height", "wind_u", "wind_v", "temperature"],
         [x/2.0 for x in range(-180, 180 + 1)],
         [x/2.0 for x in range(0, 720)]
