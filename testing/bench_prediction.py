@@ -25,7 +25,7 @@ for i in range(n_repeats):
     wind = WindDataset.open_latest(persistent=True)
     t0 = wind.ds_time + timedelta(hours=12)
     t0 = calendar.timegm(t0.timetuple())
-    stages = models.standard_profile(5.0, 30000, 5.0, wind, elevation, warningcounts)
+    stages = models.standard_profile_cusf(5.0, 30000, 5.0, wind, elevation, warningcounts)
     result = solver.solve(t0, lat0, lng0, alt0, stages)
 end_time = time.time()
 

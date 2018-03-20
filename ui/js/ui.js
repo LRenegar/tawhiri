@@ -5,9 +5,6 @@ PredictionModes = {
 };
 
 function Form($wrapper) {
-    const MODE_SIMPLE = 0;
-    const MODE_HOURLY = 1;
-    const MODE_MONTE_CARLO = 2;
     var _this = this;
     this.$wrapper = $wrapper;
     this.slidingPanel = new SlidingPanel(this.$wrapper);
@@ -35,8 +32,8 @@ function Form($wrapper) {
     };
     this.getSelectedLaunchDatetime = function () {
         var dt = new Date(_this.selectedLaunchDate.getTime());
-        dt.setHours($('#inputLaunchHour').val());
-        dt.setMinutes($('#inputLaunchMinute').val());
+        dt.setHours(this.input_launch_hour.val());
+        dt.setMinutes(this.input_launch_minute.val());
         return dt;
     };
     this.showLaunchDatetimeUTCPreview = function () {
@@ -45,40 +42,41 @@ function Form($wrapper) {
     };
     this._validateMinutesHourly = function() {
         var selectedTime = _this.getSelectedLaunchDatetime();
-        $('#inputLaunchMinute option').removeAttr('disabled');
-        var $selectedHour = $('#inputLaunchHour option:selected');
+        this.input_launch_minute.find('option').removeAttr('disabled');
+        var $selectedHour = $('#inputLaunchHour').find('option:selected');
         var $selected;
+        var $hourly = $('#hourly');
         if (selectedTime.toDateString() === _this.minPrediction.toDateString() &&
-                $selectedHour.val() == _this.minPrediction.getHours()) {
+                $selectedHour.val() === _this.minPrediction.getHours()) {
             var minMins = _this.minPrediction.getMinutes();
-            $('#inputLaunchMinute option').each(function() {
+            this.input_launch_minute.find('option').each(function() {
                 var $option = $(this);
                 if ($option.val() < minMins) {
                     $option.attr("disabled", "disabled");
                 }
             });
-            $selected = $('#inputLaunchMinute option:selected');
+            $selected = this.input_launch_minute.find('option:selected');
             if ($selected.val() < minMins) {
                 // deselect currently selected option
                 $selected.removeAttr('selected');
                 // select earliest allowed option
-                $('#inputLaunchMinute option:not(:disabled)').first().prop('selected', true);
+                this.input_launch_minute.find('option:not(:disabled)').first().prop('selected', true);
             }
         } else if (selectedTime.toDateString() === _this.maxPrediction.toDateString() &&
-                $selectedHour.val() == _this.maxPrediction.getHours()) {
+                $selectedHour.val() === _this.maxPrediction.getHours()) {
             var maxMins = _this.maxPrediction.getMinutes();
-            $('#inputLaunchMinute option').each(function() {
+            this.input_launch_minute.find('option').each(function() {
                 var $option = $(this);
                 if ($option.val() > maxMins) {
                     $option.attr("disabled", "disabled");
                 }
             });
-            $selected = $('#inputLaunchMinute option:selected');
+            $selected = this.input_launch_minute.find('option:selected');
             if ($selected.val() > maxMins) {
                 // deselect currently selected option
                 $selected.removeAttr('selected');
                 // select earliest allowed option
-                $('#inputLaunchMinute option:not(:disabled)').last().prop('selected', true);
+                this.input_launch_minute.find('option:not(:disabled)').last().prop('selected', true);
             }
         }
 
@@ -89,7 +87,7 @@ function Form($wrapper) {
         // +1 hour because of the way the predictions are run later.
         // i.e. 1 = current time
         //console.log('maxHourlyPrediction', maxHourlyPrediction);
-        $('#hourly option').each(function() {
+        $hourly.find('option').each(function() {
             var $option = $(this);
             if ($option.val() > maxHourlyPrediction) {
                 $option.attr("disabled", "disabled");
@@ -97,18 +95,18 @@ function Form($wrapper) {
                 $option.removeAttr('disabled');
             }
         });
-        $selected = $('#hourly option:selected');
+        $selected = $hourly.find('option:selected');
         if ($selected.val() > maxHourlyPrediction) {
             // deselect currently selected option
             $selected.removeAttr('selected');
             // select max allowed option
-            $('#hourly option:not(:disabled)').last().prop('selected', true);
+            $hourly.find('option:not(:disabled)').last().prop('selected', true);
         }
         // remove old dynamically inserted max value
-        $('#hourly option.dynamicallyInsertedMaxValue').remove();
-        if (!($('#hourly option[value="' + maxHourlyPrediction + '"]').length)) {
+        $hourly.find('option.dynamicallyInsertedMaxValue').remove();
+        if (!($hourly.find('option[value="' + maxHourlyPrediction + '"]').length)) {
             // add an option for the latest permissible hourly prediction
-            $('#hourly option:not(:disabled)').last().after('<option class="dynamicallyInsertedMaxValue" value="' + maxHourlyPrediction + '">' + maxHourlyPrediction + '</option>');
+            $hourly.find('option:not(:disabled)').last().after('<option class="dynamicallyInsertedMaxValue" value="' + maxHourlyPrediction + '">' + maxHourlyPrediction + '</option>');
         }
 
         _this.showLaunchDatetimeUTCPreview();
@@ -117,7 +115,7 @@ function Form($wrapper) {
         var predictionMode = $('#predictionMode').val();
         var $numberRunsDiv = $('#number-runs');
         var $numberRunsLabel = $('#selectNumberRunsLabel');
-        if (predictionMode == PredictionModes.simple) {
+        if (predictionMode === PredictionModes.simple) {
             $numberRunsDiv.slideUp(150);
             $('#selectNumberRuns').val("1");
         }
@@ -145,9 +143,10 @@ function Form($wrapper) {
             // sort out time pickers
             var currentDateString = dateTime.toDateString();
             var $selected;
+            var $inputLaunchHour =  $('#inputLaunchHour');
             if (currentDateString === _this.minPrediction.toDateString()) {
                 var minHours = _this.minPrediction.getHours();
-                $('#inputLaunchHour option').each(function() {
+                $inputLaunchHour.find('option').each(function() {
                     var $option = $(this);
                     if ($option.val() < minHours) {
                         $option.attr("disabled", "disabled");
@@ -155,16 +154,16 @@ function Form($wrapper) {
                         $option.removeAttr('disabled');
                     }
                 });
-                $selected = $('#inputLaunchHour option:selected');
+                $selected = $inputLaunchHour.find('option:selected');
                 if ($selected.val() < minHours) {
                     // deselect currently selected option
                     $selected.removeAttr('selected');
                     // select earliest allowed option
-                    $('#inputLaunchHour option:not(:disabled)').first().prop('selected', true);
+                    $inputLaunchHour.find('option:not(:disabled)').first().prop('selected', true);
                 }
             } else if (currentDateString === _this.maxPrediction.toDateString()) {
                 var maxhours = _this.maxPrediction.getHours();
-                $('#inputLaunchHour option').each(function() {
+                $inputLaunchHour.find('option').each(function() {
                     var $option = $(this);
                     if ($option.val() > maxhours) {
                         $option.attr("disabled", "disabled");
@@ -172,15 +171,15 @@ function Form($wrapper) {
                         $option.removeAttr('disabled');
                     }
                 });
-                $selected = $('#inputLaunchHour option:selected');
+                $selected = $inputLaunchHour.find('option:selected');
                 if ($selected.val() > maxhours) {
                     $selected.removeAttr('selected');
                     // select latest allowed option
-                    $('#inputLaunchHour option:not(:disabled)').last().prop('selected', true);
+                    $inputLaunchHour.find('option:not(:disabled)').last().prop('selected', true);
                 }
             } else {
-                $('#inputLaunchHour option').removeAttr('disabled');
-                $('#inputLaunchMinute option').removeAttr('disabled');
+                $inputLaunchHour.find('option').removeAttr('disabled');
+                $('#inputLaunchMinute').find('option').removeAttr('disabled');
             }
             _this._validateMinutesHourly();
         };
@@ -223,7 +222,7 @@ function Form($wrapper) {
         var launchDatetime = new Date(firstLaunchDatetime.getTime());
         for (var i = 0; i < runs; i++) { // < so that we don't add additional hours
             predictorData = $.extend({}, predictorData);
-            if(predictionMode == PredictionModes.hourly) {
+            if(predictionMode === PredictionModes.hourly) {
                 launchDatetime = new Date(firstLaunchDatetime.getTime() + (i * 60 * 60 * 1000)); // add i hours
             }
             predictorData.launch_datetime = launchDatetime.toISOString();
@@ -234,8 +233,8 @@ function Form($wrapper) {
     this.autoPopulateInputs = function() {
         var hrs = padTwoDigits(_this.currentDate.getHours());
         var mins = padTwoDigits(_this.currentDate.getMinutes());
-        $('#inputLaunchHour option[value=' + hrs + ']').prop('selected', true);
-        $('#inputLaunchMinute option[value=' + mins + ']').prop('selected', true);
+        $('#inputLaunchHour').find('option[value=' + hrs + ']').prop('selected', true);
+        $('#inputLaunchMinute').find('option[value=' + mins + ']').prop('selected', true);
         _this.showLaunchDatetimeUTCPreview();
     };
 
@@ -270,18 +269,34 @@ function Form($wrapper) {
         $('#inputLaunchMinute').on('change.validateMinutesHourly', _this._validateMinutesHourly);
 
         var predictionMode = $('#predictionMode');
+        var divMonteCarloParams = $('#divMonteCarloParams');
         predictionMode.on("change.updateNumberRuns", _this._updateNumberRuns);
-        $('#predictionMode').on("change.updateMonteCarloParams", function(event) {
+        predictionMode.on("change.updateMonteCarloParams", function(event) {
             event.preventDefault();
-            if($('#predictionMode').val() == "monteCarlo" && $('#divMonteCarloParams').is(':hidden')) {
-                $('#divMonteCarloParams').slideDown(300);
+            if(predictionMode.val() === "monteCarlo" && divMonteCarloParams.is(':hidden')) {
+                divMonteCarloParams.slideDown(300);
             }
-            else if($('#predictionMode').val() != "monteCarlo" && $('#divMonteCarloParams').is(':visible')) {
-                $('#divMonteCarloParams').slideUp(300);
+            else if(predictionMode.val() !== "monteCarlo" && divMonteCarloParams.is(':visible')) {
+                divMonteCarloParams.slideUp(300);
             }
             return false;
         });
         predictionMode.change(); // To set Prediction Runs div hidden or not
+
+        var physicsModel = $('#physicsModel');
+        physicsModel.on("change.updatePhysicsModel", function(event){
+            event.preventDefault();
+            if(physicsModel.val() === "CUSF") {
+                $('#divUMDBPPModelOnlyParams').slideUp(300);
+                $('#divCUSFModelOnlyParams').slideDown(300);
+            }
+            else if (physicsModel.val() === "UMDBPP") {
+                $('#divCUSFModelOnlyParams').slideUp(300);
+                $('#divUMDBPPModelOnlyParams').slideDown(300);
+            }
+            return false;
+        });
+        physicsModel.change();
     };
 
     /**
@@ -298,12 +313,24 @@ function Form($wrapper) {
         predictionParams.launch_longitude = _this.wrapLongitude(formData.launch_longitude);
         predictionParams.launch_altitude  = _this.convertUnits(formData.launch_altitude, formData.unitLaunchAltitude);
 
-        predictionParams.ascent_rate     = _this.convertUnits(formData.ascent_rate,     formData.unitLaunchAscentRate);
         predictionParams.burst_altitude  = _this.convertUnits(formData.burst_altitude,  formData.unitLaunchBurstAlt);
         predictionParams.descent_rate    = _this.convertUnits(formData.descent_rate,    formData.unitLaunchDescentRate);
 
         predictionParams.physics_model = formData.physics_model;
         predictionParams.monte_carlo = (formData.prediction_mode == PredictionModes.monteCarlo);
+
+        if(predictionParams.physics_model === "CUSF") {
+            predictionParams.ascent_rate = _this.convertUnits(formData.ascent_rate, formData.unitLaunchAscentRate);
+        }
+        else if(predictionParams.physics_model === "UMDBPP") {
+            predictionParams.helium_mass = _this.convertUnits(formData.helium_mass, formData.unitHeliumMass);
+            predictionParams.payload_mass = _this.convertUnits(formData.payload_mass, formData.unitPayloadMass);
+            predictionParams.balloon_mass = _this.convertUnits(formData.balloon_mass, formData.unitBalloonMass);
+        }
+        else {
+            notifications.error('Unrecognised physics model: ' + predictionParams.physics_model);
+            return;
+        }
 
         if(predictionParams.monte_carlo) {
             predictionParams.ascent_rate_std_dev = _this.convertUnits(formData.ascent_rate_param, formData.unitAscentRateParam);
@@ -334,6 +361,10 @@ function Form($wrapper) {
                 return value;
             case 'ft/s':
                 return feetToMeters(value);
+            case 'kg':
+                return value;
+            case 'lbm':
+                return lbmToKg(value);
             default:
                 notifications.error('Unrecognised units ' + fromUnits);
         }
@@ -513,14 +544,14 @@ function Map($wrapper) {
             var placename = $pac_input.val();
             console.log('sending request for', placename);
             _this.geocoder.geocode({"address": placename}, function(results, status) {
-                if (status == google.maps.GeocoderStatus.OK) {
+                if (status === google.maps.GeocoderStatus.OK) {
                     var lat = results[0].geometry.location.lat(),
                             lng = results[0].geometry.location.lng(),
                             placeName = results[0].address_components[0].long_name,
                             latlng = new google.maps.LatLng(lat, lng);
                     _this.map.setCenter(latlng);
                     _this.map.fitBounds(results[0].geometry.viewport);
-                } else if (status == google.maps.GeocoderStatus.ZERO_RESULTS) {
+                } else if (status === google.maps.GeocoderStatus.ZERO_RESULTS) {
                     notifications.alert('No results found for "' + placename + '"');
                     console.log('no results found for', placename);
                 } else {
@@ -549,10 +580,10 @@ function Map($wrapper) {
             function addEventListenerWrapper(type, listener) {
                 // Simulate a 'down arrow' keypress on hitting 'return' when no pac suggestion is selected,
                 // and then trigger the original listener.
-                if (type == "keydown") {
+                if (type === "keydown") {
                     orig_listener = listener;
                     listener = function(event) {
-                        if (event.which == 13) {
+                        if (event.which === 13) {
                             selectNextAutoSuggestion();
                             searchAndCenter();
                         }
@@ -1011,7 +1042,7 @@ function HourlySlider() {
         _this.$infoBoxContainer.hide();
     };
     this.remove = function() {
-        $("#hourly-time-slider-container .slider").remove();
+        $("#hourly-time-slider-container").find(".slider").remove();
         _this.$infoBoxContainer.html('');
         _this.$infoBoxContainer.hide();
     };

@@ -33,6 +33,8 @@ function formatTime(d) {
     return padTwoDigits(d.getHours()) + ":" + padTwoDigits(d.getMinutes());
 }
 function feetToMeters(feet) {
-    return 0.3048 * feet; // 1 meter == 0.3048 ft
+    return 0.3048 * feet; // 1 ft = 0.3048 m
 }
-
+function lbmToKg(lbm) {
+   return 0.453592 * lbm; // 1 lbm = 0.453592 kg
+}

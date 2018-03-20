@@ -20,7 +20,7 @@ wind = WindDataset.open_latest()
 elevation = ElevationDataset()
 warningcounts = WarningCounts()
 
-stages = models.standard_profile(5.0, 30000, 5.0, wind, elevation, warningcounts)
+stages = models.standard_profile_cusf(5.0, 30000, 5.0, wind, elevation, warningcounts)
 rise, fall = solver.solve(t0, lat0, lng0, alt0, stages)
 
 assert rise[-1] == fall[0]

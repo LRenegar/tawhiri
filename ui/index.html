@@ -167,7 +167,8 @@
                 <div class="col-sm-6">
                   <div class="input-group">
                     <select class="form-control" id="physicsModel" name="physics_model" required="required">
-                      <option>CUSF</option>
+                      <option value="CUSF">CUSF</option>
+                      <option value="UMDBPP">UMDBPP</option>
                     </select>
                   </div>
                 </div>
@@ -191,8 +192,9 @@
             </div>
 
             <div>
-              <h4>In flight parameters</h4>
-              <div class="form-group ">
+              <h4>System Parameters</h4>
+              <div id="divCUSFModelOnlyParams">
+                <div class="form-group " id="divAscentRate">
                 <label for="inputLaunchAscentRate" class="col-sm-6 control-label">Ascent Rate</label>
                 <div class="col-sm-6">
                   <div class="input-group">
@@ -208,37 +210,90 @@
                   </div>
                 </div>
               </div>
-              <div class="form-group ">
-                <label for="inputLaunchBurstAlt" class="col-sm-5 control-label">Burst Alt</label>
-                <div class="col-sm-7">
+              </div>
+              <div>
+                <div class="form-group " id="divBurstAlt">
+                  <label for="inputLaunchBurstAlt" class="col-sm-5 control-label">Burst Alt</label>
+                  <div class="col-sm-7">
+                    <div class="input-group">
+                      <input type="number" step="any" class="form-control" id="inputLaunchBurstAlt" name="burst_altitude" value="30000" placeholder="" required="required">
+                      <div class="input-group-btn unit-selection">
+                        <input type="hidden" name="unitLaunchBurstAlt" value="m"/>
+                        <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m</span> <span class="caret"></span></button>
+                        <ul class="dropdown-menu pull-right">
+                          <li><a href="#">m</a></li>
+                          <li><a href="#">ft</a></li>
+                        </ul>
+                      </div><!-- /btn-group -->
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group " id="divDescentRate">
+                  <label for="inputLaunchDescentRate" class="col-sm-6 control-label">Descent Rate</label>
+                  <div class="col-sm-6">
+                    <div class="input-group">
+                      <input type="number" step="any" min="0" class="form-control" id="inputLaunchDescentRate" name="descent_rate" value="5" placeholder="" required="required">
+                      <div class="input-group-btn unit-selection">
+                        <input type="hidden" name="unitLaunchDescentRate" value="m/s"/>
+                        <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m/s</span> <span class="caret"></span></button>
+                        <ul class="dropdown-menu pull-right">
+                          <li><a href="#">m/s</a></li>
+                          <li><a href="#">ft/s</a></li>
+                        </ul>
+                      </div><!-- /btn-group -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div id="divUMDBPPModelOnlyParams">
+                <div class="form-group " id="divHeliumMass">
+                  <label for="inputHeliumMass" class="col-sm-6 control-label">Helium Mass</label>
+                  <div class="col-sm-6">
+                    <div class="input-group">
+                      <input type="number" step="any" min="0" class="form-control" id="inputHeliumMass" name="helium_mass" value="5" placeholder="" required="required">
+                      <div class="input-group-btn unit-selection">
+                        <input type="hidden" name="unitHeliumMass" value="m/s"/>
+                        <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">kg</span> <span class="caret"></span></button>
+                        <ul class="dropdown-menu pull-right">
+                          <li><a href="#">kg</a></li>
+                          <li><a href="#">lbm</a></li>
+                        </ul>
+                      </div><!-- /btn-group -->
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group " id="divPayloadMass">
+                <label for="inputPayloadMass" class="col-sm-6 control-label">Payload Mass</label>
+                <div class="col-sm-6">
                   <div class="input-group">
-                    <input type="number" step="any" class="form-control" id="inputLaunchBurstAlt" name="burst_altitude" value="30000" placeholder="" required="required">
+                    <input type="number" step="any" min="0" class="form-control" id="inputPayloadMass" name="payload_mass" value="10" placeholder="" required="required">
                     <div class="input-group-btn unit-selection">
-                      <input type="hidden" name="unitLaunchBurstAlt" value="m"/>
-                      <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m</span> <span class="caret"></span></button>
+                      <input type="hidden" name="unitPayloadMass" value="m/s"/>
+                      <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">kg</span> <span class="caret"></span></button>
                       <ul class="dropdown-menu pull-right">
-                        <li><a href="#">m</a></li>
-                        <li><a href="#">ft</a></li>
+                        <li><a href="#">kg</a></li>
+                        <li><a href="#">lbm</a></li>
                       </ul>
                     </div><!-- /btn-group -->
                   </div>
                 </div>
               </div>
-              <div class="form-group ">
-                <label for="inputLaunchDescentRate" class="col-sm-6 control-label">Descent Rate</label>
+                <div class="form-group " id="divBalloonMass">
+                <label for="inputBalloonMass" class="col-sm-6 control-label">Balloon Mass</label>
                 <div class="col-sm-6">
                   <div class="input-group">
-                    <input type="number" step="any" min="0" class="form-control" id="inputLaunchDescentRate" name="descent_rate" value="5" placeholder="" required="required">
+                    <input type="number" step="any" min="0" class="form-control" id="inputBalloonMass" name="balloon_mass" value="10" placeholder="" required="required">
                     <div class="input-group-btn unit-selection">
-                      <input type="hidden" name="unitLaunchDescentRate" value="m/s"/>
-                      <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m/s</span> <span class="caret"></span></button>
+                      <input type="hidden" name="unitBalloonMass" value="m/s"/>
+                      <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">kg</span> <span class="caret"></span></button>
                       <ul class="dropdown-menu pull-right">
-                        <li><a href="#">m/s</a></li>
-                        <li><a href="#">ft/s</a></li>
+                        <li><a href="#">kg</a></li>
+                        <li><a href="#">lbm</a></li>
                       </ul>
                     </div><!-- /btn-group -->
                   </div>
                 </div>
+              </div>
               </div>
             </div>
 

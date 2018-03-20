@@ -35,6 +35,7 @@ LATEST_DATASET_KEYWORD = "latest"
 PROFILE_STANDARD = "standard_profile"
 PROFILE_FLOAT = "float_profile"
 PHYSICS_MODEL_CUSF = "CUSF"
+PHYSICS_MODEL_BPP = "UMDBPP"
 
 ASCENT_RATE_STD_DEV_FRACTION = 0.2
 DESCENT_RATE_STD_DEV_FRACTION = 0.2
@@ -49,6 +50,7 @@ def ruaumoko_ds():
         ruaumoko_ds.once = ElevationDataset(ds_loc)
 
     return ruaumoko_ds.once
+
 
 def _rfc3339_to_timestamp(dt):
     """
@@ -148,17 +150,40 @@ def parse_request(data):
                                                 default=False)
 
     if request['profile'] == PROFILE_STANDARD:
+        request['burst_altitude'] = \
+            _extract_parameter(data, "burst_altitude", float,
+                               validator=lambda x: x > launch_alt)
+
+        request['descent_rate'] = \
+            _extract_parameter(data, "descent_rate", float,
+                               validator=lambda x: x > 0)
+
+        if request['monte_carlo']:
+            request['descent_rate_std_dev'] = \
+                _extract_parameter(data, "descent_rate_std_dev", float,
+                                   default=DESCENT_RATE_STD_DEV_FRACTION
+                                           * request['descent_rate'],
+                                   validator=lambda x: x >= 0)
+
+            request['burst_altitude_std_dev'] = \
+                _extract_parameter(data, "burst_altitude_std_dev", float,
+                                   default=BURST_ALTITUDE_STD_DEV_FRACTION
+                                           * request['burst_altitude'],
+                                   validator=lambda x: x >= 0)
+
+            request['wind_std_dev'] = \
+                _extract_parameter(data, "wind_std_dev", float,
+                                   default=WIND_STD_DEV_FRACTION,
+                                   validator=lambda x: x >= 0)
+
+        else:
+            request['descent_rate_std_dev'] = 0
+            request['burst_altitude_std_dev'] = 0
+            request['wind_std_dev'] = 0
+
         if request['physics_model'] == PHYSICS_MODEL_CUSF:
             request['ascent_rate'] = \
                 _extract_parameter(data, "ascent_rate", float,
-                                   validator=lambda x: x > 0)
-
-            request['burst_altitude'] = \
-                _extract_parameter(data, "burst_altitude", float,
-                                   validator=lambda x: x > launch_alt)
-
-            request['descent_rate'] = \
-                _extract_parameter(data, "descent_rate", float,
                                    validator=lambda x: x > 0)
 
             if request['monte_carlo']:
@@ -168,27 +193,21 @@ def parse_request(data):
                                        * request['ascent_rate'],
                                        validator=lambda x: x >= 0)
 
-                request['descent_rate_std_dev'] = \
-                    _extract_parameter(data, "descent_rate_std_dev", float,
-                                       default=DESCENT_RATE_STD_DEV_FRACTION
-                                       * request['descent_rate'],
-                                       validator=lambda x: x >= 0)
-
-                request['burst_altitude_std_dev'] = \
-                    _extract_parameter(data, "burst_altitude_std_dev", float,
-                                       default=BURST_ALTITUDE_STD_DEV_FRACTION
-                                       * request['burst_altitude'],
-                                       validator=lambda x: x >= 0)
-
-                request['wind_std_dev'] = \
-                    _extract_parameter(data, "wind_std_dev", float,
-                                       default=WIND_STD_DEV_FRACTION,
-                                       validator=lambda x: x >= 0)
             else:
                 request['ascent_rate_std_dev'] = 0
-                request['descent_rate_std_dev'] = 0
-                request['burst_altitude_std_dev'] = 0
-                request['wind_std_dev'] = 0
+
+        elif request['physics_model'] == PHYSICS_MODEL_BPP:
+            request['helium_mass'] = \
+                _extract_parameter(data, "helium_mass", float,
+                                   validator=lambda x: x >= 0)
+
+            request['payload_mass'] = \
+                _extract_parameter(data, "payload_mass", float,
+                                   validator=lambda x: x >= 0)
+
+            request['balloon_mass'] = \
+                _extract_parameter(data, "balloon_mass", float,
+                                   validator=lambda x: x >= 0)
 
         else:
             raise RequestException(
@@ -271,14 +290,30 @@ def run_prediction(req):
 
     # Stages
     if req['profile'] == PROFILE_STANDARD:
-        stages = models.standard_profile(req['ascent_rate'],
-                                         req['burst_altitude'],
-                                         req['descent_rate'], tawhiri_ds,
-                                         ruaumoko_ds(), warningcounts,
-                                         req['ascent_rate_std_dev'],
-                                         req['burst_altitude_std_dev'],
-                                         req['descent_rate_std_dev'],
-                                         req['wind_std_dev'])
+
+        if req['physics_model'] == PHYSICS_MODEL_CUSF:
+            stages = models.standard_profile_cusf(req['ascent_rate'],
+                                                  req['burst_altitude'],
+                                                  req['descent_rate'], tawhiri_ds,
+                                                  ruaumoko_ds(), warningcounts,
+                                                  req['ascent_rate_std_dev'],
+                                                  req['burst_altitude_std_dev'],
+                                                  req['descent_rate_std_dev'],
+                                                  req['wind_std_dev'])
+        elif req['physics_model'] == PHYSICS_MODEL_BPP:
+            stages = models.standard_profile_bpp(req['helium_mass'],
+                                                 req['payload_mass'] + req['balloon_mass'],
+                                                 req['burst_altitude'],
+                                                 req['descent_rate'], tawhiri_ds,
+                                                 ruaumoko_ds(), warningcounts,
+                                                 req['burst_altitude_std_dev'],
+                                                 req['descent_rate_std_dev'],
+                                                 req['wind_std_dev'])
+
+        else:
+            raise InternalException("Unknown physics model '%s'." % req['physics_model'])
+
+
     elif req['profile'] == PROFILE_FLOAT:
         stages = models.float_profile(req['ascent_rate'],
                                       req['float_altitude'],

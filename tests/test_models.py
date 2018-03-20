@@ -164,7 +164,7 @@ class TestModels:
         burst.return_value = 'burst'
         drag.return_value = 'drag'
         elev.return_value = 'elev'
-        model = models.standard_profile(5.0, 30000.0, 6.0, wind_ds, elev_ds, warns)
+        model = models.standard_profile_cusf(5.0, 30000.0, 6.0, wind_ds, elev_ds, warns)
         const.assert_called_with(5.0)
         wind.assert_called_with(wind_ds, warns)
         linear.assert_any_call(['const', 'wind'])

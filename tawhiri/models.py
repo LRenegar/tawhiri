@@ -33,6 +33,13 @@ from .dataset import Dataset
 _PI_180 = math.pi / 180.0
 _180_PI = 180.0 / math.pi
 
+R_air = 287.05  # Gas constant of air [J/kg-K]
+R_helium = 2077.1  # Gas constant of helium [J/kg-K]
+
+MB_TO_PA = 100  # millibar to Pascal multiplicative conversion factor
+
+g0 = 9.80665  # Standard acceleration of gravity [m/s^2]
+
 
 ## Up/Down Models #############################################################
 
@@ -42,6 +49,32 @@ def make_constant_ascent(ascent_rate):
     def constant_ascent(t, lat, lng, alt):
         return 0.0, 0.0, ascent_rate
     return constant_ascent
+
+def make_bpp_ascent(dataset, warningcounts, helium_mass, system_mass, dataset_errors=None):
+    """
+        Return a 3-D ascent model that models ascent rate based on dataset temperature,
+        pressure, and altitude, and the balloon's altitude-varying radius.
+    """
+    get_atmospheric_state = interpolate.make_interpolator(dataset,
+                                                          warningcounts,
+                                                          dataset_errors)
+    dataset_epoch = calendar.timegm(dataset.ds_time.timetuple())
+
+    def state_function(t, lat, lng, alt):
+        t -= dataset_epoch
+        u, v, temperature, pressure = get_atmospheric_state(t / 3600.0, lat, lng, alt)
+        pressure = pressure * MB_TO_PA  # convert to consistent units
+        rho_air = pressure/R_air/temperature
+        rho_helium = pressure/R_helium/temperature  # temp and pressure inside balloon assumed equal to outside
+        balloon_radius = math.pow(3.0*helium_mass/(4.0*math.pi*rho_helium), 1.0/3.0)
+        numerator = ((4.0/3.0)*math.pi*math.pow(balloon_radius, 3)*(rho_air - rho_helium) - system_mass)*g0
+        denominator = 0.5*rho_air*drag_coefficient(rho_air, balloon_radius, temperature, 0)*math.pi*math.pow(balloon_radius, 2)
+        w = math.sqrt(numerator/denominator)
+        h = 6371009 + alt
+        dlat = _180_PI * v / h
+        dlng = _180_PI * u / (h * math.cos(lat * _PI_180))
+        return dlat, dlng, w
+    return state_function
 
 
 def make_drag_descent(sea_level_descent_rate):
@@ -164,10 +197,10 @@ def make_any_terminator(terminators):
 ## Pre-Defined Profiles #######################################################
 
 
-def standard_profile(ascent_rate, burst_altitude, descent_rate,
-                     wind_dataset, elevation_dataset, warningcounts,
-                     ascent_rate_std_dev=0, burst_altitude_std_dev=0,
-                     descent_rate_std_dev=0, wind_std_dev=0):
+def standard_profile_cusf(ascent_rate, burst_altitude, descent_rate,
+                          wind_dataset, elevation_dataset, warningcounts,
+                          ascent_rate_std_dev=0, burst_altitude_std_dev=0,
+                          descent_rate_std_dev=0, wind_std_dev=0):
     """Make a model chain for the standard high altitude balloon situation of
        ascent at a constant rate followed by burst and subsequent descent
        at terminal velocity under parachute with a predetermined sea level
@@ -193,7 +226,50 @@ def standard_profile(ascent_rate, burst_altitude, descent_rate,
 
     model_down = make_linear_model([make_drag_descent(descent_rate),
                                     make_wind_velocity(wind_dataset,
-                                                       warningcounts)])
+                                                       warningcounts,
+                                                       dataset_error)])
+    term_down = make_elevation_data_termination(elevation_dataset)
+
+    return ((model_up, term_up), (model_down, term_down))
+
+
+def standard_profile_bpp(helium_mass, dry_mass, burst_altitude,
+                         sea_level_descent_rate, wind_dataset, elevation_dataset,
+                         warningcounts, burst_altitude_std_dev=0,
+                         descent_rate_std_dev=0, wind_std_dev=0):
+    """
+    Make a model chain for the standard high altitude balloon situation of ascent until burst and
+    descent under parachute. Ascent rate is calculated using the BPP physics model, which calculates
+    the ascent velocity using the balloon's time-varying radius and the density computed from the
+    weather model data.
+    :param helium_mass: The mass of helium in the balloon, in kg
+    :param dry_mass: The mass of payload and balloon, in kg
+    :param burst_altitude: The burst altitude, in m
+    :param sea_level_descent_rate: The descent rate of the system at sea level, in m/s
+    :param wind_dataset: The wind dataset to use
+    :param elevation_dataset: The ruaumoko elevation dataset to use
+    :param warningcounts: The warningcounts object to use
+    :param burst_altitude_std_dev: The standard deviation in burst altitude to use for Monte Carlo runs, in m
+    :param descent_rate_std_dev: The standard deviation in sea level descent rate to use for Monte Carlo runs, in m/s
+    :param wind_std_dev: The standard deviation in wind magnitudes to use, as a fraction
+    :return: A tuple of (model, terminator) pairs representing the stages of the flight
+    """
+
+    burst_altitude = normalvariate(burst_altitude, burst_altitude_std_dev)
+    sea_level_descent_rate = normalvariate(sea_level_descent_rate, descent_rate_std_dev)
+
+    dataset_error = generate_dataset_error(wind_std_dev)
+
+    model_up = make_bpp_ascent(wind_dataset, warningcounts,
+                               helium_mass, dry_mass,
+                               dataset_error)
+
+    term_up = make_burst_termination(burst_altitude)
+
+    model_down = make_linear_model([make_drag_descent(sea_level_descent_rate),
+                                    make_wind_velocity(wind_dataset,
+                                                       warningcounts,
+                                                       dataset_error)])
     term_down = make_elevation_data_termination(elevation_dataset)
 
     return ((model_up, term_up), (model_down, term_down))
@@ -213,6 +289,7 @@ def float_profile(ascent_rate, float_altitude, stop_time, dataset, warningcounts
 
     return ((model_up, term_up), (model_float, term_float))
 
+## Support Functions ##########################################################
 
 def generate_dataset_error(max_wind_deviation):
     dataset_error = np.zeros((Dataset.NUM_GFS_VARIABLES,
@@ -227,3 +304,6 @@ def generate_dataset_error(max_wind_deviation):
             uniform(-max_wind_deviation, max_wind_deviation)
 
     return dataset_error
+
+def drag_coefficient(rho_air, balloon_radius, temperature, velocity):
+    return 0.5  # TODO should perform computation based on Reynolds #
