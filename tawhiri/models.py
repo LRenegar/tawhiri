@@ -86,7 +86,7 @@ def make_drag_descent(dataset, warningcounts, sea_level_descent_rate, dataset_er
     gas law, which is used to compute the downward velocity of the balloon.
 
     This model affects the z component only.
-    
+
     :param dataset: The atmospheric dataset to use
     :param warningcounts: The warningcounts object to use
     :param sea_level_descent_rate: The balloon's descent rate at sea level in a standard atmosphere
@@ -174,6 +174,22 @@ def make_time_termination(max_time):
         if t > max_time:
             return True
     return time_termination
+
+def make_diameter_termination(dataset, warningcounts, helium_mass, burst_diameter, dataset_errors=None):
+
+    get_atmospheric_state = interpolate.make_interpolator(dataset,
+                                                          warningcounts,
+                                                          dataset_errors)
+    dataset_epoch = calendar.timegm(dataset.ds_time.timetuple())
+
+    def terminator_function(t, lat, lng, alt):
+        t -= dataset_epoch
+        temperature, pressure = get_atmospheric_state(t / 3600.0, lat, lng, alt)[2:4]
+        pressure = pressure * MB_TO_PA  # convert to consistent units
+        rho_helium = pressure/R_helium/temperature  # temp and pressure inside balloon assumed equal to outside
+        balloon_radius = math.pow(3.0*helium_mass/(4.0*math.pi*rho_helium), 1.0/3.0)
+        return 2.0*balloon_radius > burst_diameter
+    return terminator_function
 
 
 ## Model Combinations #########################################################
@@ -289,6 +305,52 @@ def standard_profile_bpp(helium_mass, dry_mass, burst_altitude,
 
     return ((model_up, term_up), (model_down, term_down))
 
+def standard_profile_bpp_diameter_term(helium_mass, dry_mass, burst_diameter,
+                                       sea_level_descent_rate, wind_dataset, elevation_dataset,
+                                       warningcounts, burst_diameter_std_dev=0,
+                                       descent_rate_std_dev=0, wind_std_dev=0,
+                                       helium_mass_std_dev = 0):
+    """
+    Make a model chain for the standard high altitude balloon situation of ascent until burst and
+    descent under parachute. Ascent rate is calculated using the BPP physics model, which calculates
+    the ascent velocity using the balloon's time-varying radius and the density computed from the
+    weather model data. Burst is based on the balloon's diameter
+    :param helium_mass: The mass of helium in the balloon, in kg
+    :param dry_mass: The mass of payload and balloon, in kg
+    :param burst_diameter: The burst diameter of the balloon, in m
+    :param sea_level_descent_rate: The descent rate of the system at sea level, in m/s
+    :param wind_dataset: The wind dataset to use
+    :param elevation_dataset: The ruaumoko elevation dataset to use
+    :param warningcounts: The warningcounts object to use
+    :param burst_diameter_std_dev: The standard deviation in balloon burst diameter to use for Monte Carlo runs, in m
+    :param descent_rate_std_dev: The standard deviation in sea level descent rate to use for Monte Carlo runs, in m/s
+    :param wind_std_dev: The standard deviation in wind magnitudes to use, as a fraction
+    :param helium_mass_std_dev The standard deviation for helium mass to use in Monte Carlo runs, in kg
+    :return: A tuple of (model, terminator) pairs representing the stages of the flight
+    """
+
+    burst_diameter = normalvariate(burst_diameter, burst_diameter_std_dev)
+    sea_level_descent_rate = normalvariate(sea_level_descent_rate, descent_rate_std_dev)
+    helium_mass = normalvariate(helium_mass, helium_mass_std_dev)
+
+    dataset_error = generate_dataset_error(wind_std_dev)
+
+    model_up = make_bpp_ascent(wind_dataset, warningcounts,
+                               helium_mass, dry_mass,
+                               dataset_error)
+
+    term_up = make_diameter_termination(burst_diameter)
+
+    model_down = make_linear_model([make_drag_descent(wind_dataset,
+                                                      warningcounts,
+                                                      sea_level_descent_rate,
+                                                      dataset_error),
+                                    make_wind_velocity(wind_dataset,
+                                                       warningcounts,
+                                                       dataset_error)])
+    term_down = make_elevation_data_termination(elevation_dataset)
+
+    return ((model_up, term_up), (model_down, term_down))
 
 def float_profile(ascent_rate, float_altitude, stop_time, dataset, warningcounts):
     """Make a model chain for the typical floating balloon situation of ascent
