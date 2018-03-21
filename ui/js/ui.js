@@ -784,6 +784,8 @@ function Map($wrapper) {
         });
         delete _this.predictionCollections;
         _this.predictionCollections = [];
+        delete _this.landingSites;
+        _this.landingSites = [];
     };
     this.placeMarker = function(latLng) {
         _this.removeAllMarkers();
