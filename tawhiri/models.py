@@ -77,33 +77,39 @@ def make_bpp_ascent(dataset, warningcounts, helium_mass, system_mass, dataset_er
     return state_function
 
 
-def make_drag_descent(sea_level_descent_rate):
-    """Return a descent-under-parachute model with sea level descent
-       `sea_level_descent_rate` (m/s). Descent rate at altitude is determined
-       using an altitude model courtesy of NASA:
-       http://www.grc.nasa.gov/WWW/K-12/airplane/atmosmet.html
-
-       For a given altitude the air density is computed, a drag coefficient is
-       estimated from the sea level descent rate, and the resulting terminal
-       velocity is computed by the returned model function.
+def make_drag_descent(dataset, warningcounts, sea_level_descent_rate, dataset_errors=None):
     """
-    def density(alt):
-        temp = pressure = 0.0
-        if alt > 25000:
-            temp = -131.21 + 0.00299 * alt
-            pressure = 2.488 * ((temp + 273.1)/(216.6)) ** (-11.388)
-        elif 11000 < alt <= 25000:
-            temp = -56.46
-            pressure = 22.65 * math.exp(1.73 - 0.000157 * alt)
-        else:
-            temp = 15.04 - 0.00649 * alt
-            pressure = 101.29 * ((temp + 273.1)/288.08) ** (5.256)
-        return pressure / (0.2869*(temp + 273.1))
+    Returns a descent-under-parachute model assuming terminal velocity at local density.
 
-    drag_coefficient = sea_level_descent_rate * 1.1045
+    The sea-level descent rate is used to compute the ballistic coefficient, assuming a standard
+    density of 1.225 kg/m^3. Local density is computed from the atmospheric dataset using the ideal
+    gas law, which is used to compute the downward velocity of the balloon.
+
+    This model affects the z component only.
+    
+    :param dataset: The atmospheric dataset to use
+    :param warningcounts: The warningcounts object to use
+    :param sea_level_descent_rate: The balloon's descent rate at sea level in a standard atmosphere
+    :param dataset_errors: The dataset errors object to use, if any
+    :return: The parachute descent model, suitable for use in the solver
+    """
+
+    get_atmospheric_state = interpolate.make_interpolator(dataset,
+                                                          warningcounts,
+                                                          dataset_errors)
+    dataset_epoch = calendar.timegm(dataset.ds_time.timetuple())
+
+    def density(t, lat, lng, alt):
+        t -= dataset_epoch
+        temperature, pressure = get_atmospheric_state(t / 3600.0, lat, lng, alt)[2:4]
+        pressure = pressure * MB_TO_PA  # convert to consistent units
+        return pressure/R_air/temperature
+
+    # This is actually sqrt(2*g0*BC), where BC is the canonical ballistic coefficient of M/C_d/A
+    ballistic_coefficient = sea_level_descent_rate * 1.1068  # Sea-level density of 1.225 kg/m^3
 
     def drag_descent(t, lat, lng, alt):
-        return 0.0, 0.0, -drag_coefficient/math.sqrt(density(alt))
+        return 0.0, 0.0, -ballistic_coefficient/math.sqrt(density(t, lat, lng, alt))
     return drag_descent
 
 
@@ -224,7 +230,10 @@ def standard_profile_cusf(ascent_rate, burst_altitude, descent_rate,
                                                      dataset_error)])
     term_up = make_burst_termination(burst_altitude)
 
-    model_down = make_linear_model([make_drag_descent(descent_rate),
+    model_down = make_linear_model([make_drag_descent(wind_dataset,
+                                                      warningcounts,
+                                                      descent_rate,
+                                                      dataset_error),
                                     make_wind_velocity(wind_dataset,
                                                        warningcounts,
                                                        dataset_error)])
@@ -269,7 +278,10 @@ def standard_profile_bpp(helium_mass, dry_mass, burst_altitude,
 
     term_up = make_burst_termination(burst_altitude)
 
-    model_down = make_linear_model([make_drag_descent(sea_level_descent_rate),
+    model_down = make_linear_model([make_drag_descent(wind_dataset,
+                                                      warningcounts,
+                                                      sea_level_descent_rate,
+                                                      dataset_error),
                                     make_wind_velocity(wind_dataset,
                                                        warningcounts,
                                                        dataset_error)])
