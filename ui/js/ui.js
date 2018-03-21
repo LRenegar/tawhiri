@@ -786,6 +786,7 @@ function Map($wrapper) {
         _this.predictionCollections = [];
         delete _this.landingSites;
         _this.landingSites = [];
+        _this.landingSiteHeatmap.setData((_this.landingSites))
     };
     this.placeMarker = function(latLng) {
         _this.removeAllMarkers();
