@@ -76,6 +76,29 @@ function Prediction(data) {
     };
 
     /**
+     * Hides the path from the map
+     */
+    this.hide = function() {
+        if (this.pathCollection) {
+            for (var j = 0; j < this.pathCollection.length; j++) {
+                this.pathCollection[j].setMap(null);
+            }
+        }
+    }
+
+    /**
+     * Shows the path on the map
+     */
+    this.show = function() {
+        if (this.pathCollection) {
+            for (var j = 0; j < this.pathCollection.length; j++) {
+                this.pathCollection[j].setMap(map.map);
+            }
+        }
+    }
+
+
+    /**
      * Dims the prediction on the map and hides the markers.
      */
     this.dim = function() {
@@ -163,6 +186,25 @@ function PredictionCollection(predData) {
     this.getPredictionByTime = function(launchtime) {
         return _this.predictions[_this.predictionIndicies[launchtime]];
     };
+
+    /**
+     * Hide all predictions on the map.
+     */
+    this.hideAllPaths = function() {
+        $.each(_this.predictions, function(launchtime, prediction) {
+            prediction.hide();
+        });
+    };
+
+    /**
+     * Show all predictions on the map.
+     */
+    this.showAllPaths = function() {
+        $.each(_this.predictions, function(launchtime, prediction) {
+            prediction.show();
+        });
+    };
+
     this.selectPredictionByTime = function(launchtime) {
         if (_this.selectedPathLaunchtime !== null) {
             if (_this.selectedPathLaunchtime === launchtime) {
@@ -183,11 +225,7 @@ function PredictionCollection(predData) {
 
     this.remove = function() {
         $.each(_this.predictions, function(index, path) {
-            if (path.pathCollection) {
-                for (var j = 0; j < path.pathCollection.length; j++) {
-                    path.pathCollection[j].setMap(null);
-                }
-            }
+            path.hide();
         });
         delete _this.predictions;
         delete _this.predictionIndicies;

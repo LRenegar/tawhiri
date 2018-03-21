@@ -297,6 +297,21 @@ function Form($wrapper) {
             return false;
         });
         physicsModel.change();
+
+        $('#btnToggleHeatmap').on('click.toggleHeatmap', function(event){
+            if(map.landingSiteHeatmap.getMap() == null) {
+                map.landingSiteHeatmap.setMap(map.map);
+                $.each(map.predictionCollections, function (key, predictionCollection) {
+                    predictionCollection.hideAllPaths();
+                });
+            }
+            else {
+                map.landingSiteHeatmap.setMap(null);
+                $.each(map.predictionCollections, function (key, predictionCollection) {
+                    predictionCollection.showAllPaths();
+                });
+            }
+        });
     };
 
     /**
@@ -523,6 +538,13 @@ function Map($wrapper) {
         });
         // initialise the search box
         _this.initSearchBox();
+
+        _this.landingSiteHeatmap = new google.maps.visualization.HeatmapLayer({
+            data: this.landingSites,
+            map: null,
+            radius: 20
+        });
+
     };
     this.reset = function() {
         _this.removeAllPredictions();
