@@ -236,7 +236,8 @@ def standard_profile_cusf(ascent_rate, burst_altitude, descent_rate,
 def standard_profile_bpp(helium_mass, dry_mass, burst_altitude,
                          sea_level_descent_rate, wind_dataset, elevation_dataset,
                          warningcounts, burst_altitude_std_dev=0,
-                         descent_rate_std_dev=0, wind_std_dev=0):
+                         descent_rate_std_dev=0, wind_std_dev=0,
+                         helium_mass_std_dev = 0):
     """
     Make a model chain for the standard high altitude balloon situation of ascent until burst and
     descent under parachute. Ascent rate is calculated using the BPP physics model, which calculates
@@ -252,11 +253,13 @@ def standard_profile_bpp(helium_mass, dry_mass, burst_altitude,
     :param burst_altitude_std_dev: The standard deviation in burst altitude to use for Monte Carlo runs, in m
     :param descent_rate_std_dev: The standard deviation in sea level descent rate to use for Monte Carlo runs, in m/s
     :param wind_std_dev: The standard deviation in wind magnitudes to use, as a fraction
+    :param helium_mass_std_dev The standard deviation for helium mass to use in Monte Carlo runs, in kg
     :return: A tuple of (model, terminator) pairs representing the stages of the flight
     """
 
     burst_altitude = normalvariate(burst_altitude, burst_altitude_std_dev)
     sea_level_descent_rate = normalvariate(sea_level_descent_rate, descent_rate_std_dev)
+    helium_mass = normalvariate(helium_mass, helium_mass_std_dev)
 
     dataset_error = generate_dataset_error(wind_std_dev)
 

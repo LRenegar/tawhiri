@@ -287,12 +287,12 @@ function Form($wrapper) {
         physicsModel.on("change.updatePhysicsModel", function(event){
             event.preventDefault();
             if(physicsModel.val() === "CUSF") {
-                $('#divUMDBPPModelOnlyParams').slideUp(300);
-                $('#divCUSFModelOnlyParams').slideDown(300);
+                $('.divUMDBPPModelOnlyParams').slideUp(300);
+                $('.divCUSFModelOnlyParams').slideDown(300);
             }
             else if (physicsModel.val() === "UMDBPP") {
-                $('#divCUSFModelOnlyParams').slideUp(300);
-                $('#divUMDBPPModelOnlyParams').slideDown(300);
+                $('.divCUSFModelOnlyParams').slideUp(300);
+                $('.divUMDBPPModelOnlyParams').slideDown(300);
             }
             return false;
         });
@@ -336,25 +336,40 @@ function Form($wrapper) {
 
         if(predictionParams.physics_model === "CUSF") {
             predictionParams.ascent_rate = _this.convertUnits(formData.ascent_rate, formData.unitLaunchAscentRate);
+            if(predictionParams.monte_carlo) {
+                predictionParams.ascent_rate_std_dev = _this.convertUnits(formData.ascent_rate_param, formData.unitAscentRateParam);
+                predictionParams.helium_mass_std_dev = 0;
+            }
+            else {
+                predictionParams.ascent_rate_std_dev = 0;
+                predictionParams.helium_mass_std_dev = 0;
+            }
         }
         else if(predictionParams.physics_model === "UMDBPP") {
             predictionParams.helium_mass = _this.convertUnits(formData.helium_mass, formData.unitHeliumMass);
             predictionParams.payload_mass = _this.convertUnits(formData.payload_mass, formData.unitPayloadMass);
             predictionParams.balloon_mass = _this.convertUnits(formData.balloon_mass, formData.unitBalloonMass);
+            if(predictionParams.monte_carlo) {
+                predictionParams.ascent_rate_std_dev = 0;
+                predictionParams.helium_mass_std_dev = _this.convertUnits(formData.helium_mass_param, formData.unitHeliumMassParam);
+            }
+            else {
+                predictionParams.ascent_rate_std_dev = 0;
+                predictionParams.helium_mass_std_dev = 0;
+            }
         }
         else {
             notifications.error('Unrecognised physics model: ' + predictionParams.physics_model);
             return;
         }
 
+        // Monte Carlo parameters common to all physics models
         if(predictionParams.monte_carlo) {
-            predictionParams.ascent_rate_std_dev = _this.convertUnits(formData.ascent_rate_param, formData.unitAscentRateParam);
             predictionParams.descent_rate_std_dev = _this.convertUnits(formData.descent_rate_param, formData.unitDescentRateParam);
             predictionParams.burst_altitude_std_dev = _this.convertUnits(formData.burst_alt_param, formData.unitBurstAltParam);
             predictionParams.wind_std_dev = formData.wind_param;
         }
         else {
-            predictionParams.ascent_rate_std_dev = 0;
             predictionParams.descent_rate_std_dev = 0;
             predictionParams.burst_altitude_std_dev = 0;
             predictionParams.wind_std_dev = 0;

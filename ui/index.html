@@ -193,7 +193,7 @@
 
             <div>
               <h4>System Parameters</h4>
-              <div id="divCUSFModelOnlyParams">
+              <div class="divCUSFModelOnlyParams">
                 <div class="form-group " id="divAscentRate">
                 <label for="inputLaunchAscentRate" class="col-sm-6 control-label">Ascent Rate</label>
                 <div class="col-sm-6">
@@ -211,7 +211,7 @@
                 </div>
               </div>
               </div>
-              <div>
+              <div class="divAllModelsParams">
                 <div class="form-group " id="divBurstAlt">
                   <label for="inputLaunchBurstAlt" class="col-sm-5 control-label">Burst Alt</label>
                   <div class="col-sm-7">
@@ -232,7 +232,7 @@
                   <label for="inputLaunchDescentRate" class="col-sm-6 control-label">Descent Rate</label>
                   <div class="col-sm-6">
                     <div class="input-group">
-                      <input type="number" step="any" min="0" class="form-control" id="inputLaunchDescentRate" name="descent_rate" value="5" placeholder="" required="required">
+                      <input type="number" step="any" min="0" class="form-control" id="inputLaunchDescentRate" name="descent_rate" value="10" placeholder="" required="required">
                       <div class="input-group-btn unit-selection">
                         <input type="hidden" name="unitLaunchDescentRate" value="m/s"/>
                         <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m/s</span> <span class="caret"></span></button>
@@ -245,12 +245,12 @@
                   </div>
                 </div>
               </div>
-              <div id="divUMDBPPModelOnlyParams">
+              <div class="divUMDBPPModelOnlyParams">
                 <div class="form-group " id="divHeliumMass">
                   <label for="inputHeliumMass" class="col-sm-6 control-label">Helium Mass</label>
                   <div class="col-sm-6">
                     <div class="input-group">
-                      <input type="number" step="any" min="0" class="form-control" id="inputHeliumMass" name="helium_mass" value="5" placeholder="" required="required">
+                      <input type="number" step="any" min="0" class="form-control" id="inputHeliumMass" name="helium_mass" value="2" placeholder="" required="required">
                       <div class="input-group-btn unit-selection">
                         <input type="hidden" name="unitHeliumMass" value="m/s"/>
                         <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">kg</span> <span class="caret"></span></button>
@@ -266,7 +266,7 @@
                 <label for="inputPayloadMass" class="col-sm-6 control-label">Payload Mass</label>
                 <div class="col-sm-6">
                   <div class="input-group">
-                    <input type="number" step="any" min="0" class="form-control" id="inputPayloadMass" name="payload_mass" value="10" placeholder="" required="required">
+                    <input type="number" step="any" min="0" class="form-control" id="inputPayloadMass" name="payload_mass" value="5" placeholder="" required="required">
                     <div class="input-group-btn unit-selection">
                       <input type="hidden" name="unitPayloadMass" value="m/s"/>
                       <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">kg</span> <span class="caret"></span></button>
@@ -282,7 +282,7 @@
                 <label for="inputBalloonMass" class="col-sm-6 control-label">Balloon Mass</label>
                 <div class="col-sm-6">
                   <div class="input-group">
-                    <input type="number" step="any" min="0" class="form-control" id="inputBalloonMass" name="balloon_mass" value="10" placeholder="" required="required">
+                    <input type="number" step="any" min="0" class="form-control" id="inputBalloonMass" name="balloon_mass" value="1.6" placeholder="" required="required">
                     <div class="input-group-btn unit-selection">
                       <input type="hidden" name="unitBalloonMass" value="m/s"/>
                       <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">kg</span> <span class="caret"></span></button>
@@ -299,11 +299,29 @@
 
             <div hidden="true" id="divMonteCarloParams">
               <h4>Monte Carlo Parameters</h4>
+              <div class="divUMDBPPModelOnlyParams">
+                <div class="form-group ">
+                  <label for="inputHeliumMassParam" class="col-sm-6 control-label">Helium Mass Std. Deviation</label>
+                  <div class="col-sm-6">
+                    <div class="input-group">
+                      <input type="number" step="any" min="0" class="form-control" id="inputHeliumMassParam" name="helium_mass_param" value="0.2" placeholder="" required="required">
+                      <div class="input-group-btn unit-selection">
+                        <input type="hidden" name="unitHeliumMassParam" value="m/s"/>
+                        <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">kg</span> <span class="caret"></span></button>
+                        <ul class="dropdown-menu pull-right">
+                          <li><a href="#">kg</a></li>
+                          <li><a href="#">lbm</a></li>
+                        </ul>
+                      </div><!-- /btn-group -->
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class="form-group ">
                 <label for="inputBurstAltParam" class="col-sm-6 control-label">Burst Alt Std. Deviation</label>
                 <div class="col-sm-6">
                   <div class="input-group">
-                    <input type="number" step="any" min="0" class="form-control" id="inputBurstAltParam" name="burst_alt_param" value="0.1" placeholder="" required="required">
+                    <input type="number" step="any" min="0" class="form-control" id="inputBurstAltParam" name="burst_alt_param" value="2000" placeholder="" required="required">
                     <div class="input-group-btn unit-selection">
                       <input type="hidden" name="unitBurstAltParam" value="m"/>
                       <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m</span> <span class="caret"></span></button>
@@ -316,19 +334,21 @@
                 </div>
               </div>
 
-              <div class="form-group ">
-                <label for="inputAscentRateParam" class="col-sm-6 control-label">Ascent Rate Std. Deviation</label>
-                <div class="col-sm-6">
-                  <div class="input-group">
-                    <input type="number" step="any" min="0" class="form-control" id="inputAscentRateParam" name="ascent_rate_param" value="0.1" placeholder="" required="required">
-                    <div class="input-group-btn unit-selection">
-                      <input type="hidden" name="unitAscentRateParam" value="m/s"/>
-                      <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m/s</span> <span class="caret"></span></button>
-                      <ul class="dropdown-menu pull-right">
-                        <li><a href="#">m/s</a></li>
-                        <li><a href="#">ft/s</a></li>
-                      </ul>
-                    </div><!-- /btn-group -->
+              <div class="divCUSFModelOnlyParams">
+                <div class="form-group ">
+                  <label for="inputAscentRateParam" class="col-sm-6 control-label">Ascent Rate Std. Deviation</label>
+                  <div class="col-sm-6">
+                    <div class="input-group">
+                      <input type="number" step="any" min="0" class="form-control" id="inputAscentRateParam" name="ascent_rate_param" value="0.5" placeholder="" required="required">
+                      <div class="input-group-btn unit-selection">
+                        <input type="hidden" name="unitAscentRateParam" value="m/s"/>
+                        <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m/s</span> <span class="caret"></span></button>
+                        <ul class="dropdown-menu pull-right">
+                          <li><a href="#">m/s</a></li>
+                          <li><a href="#">ft/s</a></li>
+                        </ul>
+                      </div><!-- /btn-group -->
+                    </div>
                   </div>
                 </div>
               </div>
@@ -337,7 +357,7 @@
                 <label for="inputDescentRateParam" class="col-sm-6 control-label">Descent Rate Std. Deviation</label>
                 <div class="col-sm-6">
                   <div class="input-group">
-                    <input type="number" step="any" min="0" class="form-control" id="inputDescentRateParam" name="descent_rate_param" value="0.1" placeholder="" required="required">
+                    <input type="number" step="any" min="0" class="form-control" id="inputDescentRateParam" name="descent_rate_param" value="1" placeholder="" required="required">
                     <div class="input-group-btn unit-selection">
                       <input type="hidden" name="unitDescentRateParam" value="m/s"/>
                       <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="unit-current">m/s</span> <span class="caret"></span></button>

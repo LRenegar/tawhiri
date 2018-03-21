@@ -37,10 +37,6 @@ PROFILE_FLOAT = "float_profile"
 PHYSICS_MODEL_CUSF = "CUSF"
 PHYSICS_MODEL_BPP = "UMDBPP"
 
-ASCENT_RATE_STD_DEV_FRACTION = 0.2
-DESCENT_RATE_STD_DEV_FRACTION = 0.2
-BURST_ALTITUDE_STD_DEV_FRACTION = 0.07
-WIND_STD_DEV_FRACTION = 0.1
 
 
 # Util functions ##############################################################
@@ -161,19 +157,17 @@ def parse_request(data):
         if request['monte_carlo']:
             request['descent_rate_std_dev'] = \
                 _extract_parameter(data, "descent_rate_std_dev", float,
-                                   default=DESCENT_RATE_STD_DEV_FRACTION
-                                           * request['descent_rate'],
+                                   default=0,
                                    validator=lambda x: x >= 0)
 
             request['burst_altitude_std_dev'] = \
                 _extract_parameter(data, "burst_altitude_std_dev", float,
-                                   default=BURST_ALTITUDE_STD_DEV_FRACTION
-                                           * request['burst_altitude'],
+                                   default=0,
                                    validator=lambda x: x >= 0)
 
             request['wind_std_dev'] = \
                 _extract_parameter(data, "wind_std_dev", float,
-                                   default=WIND_STD_DEV_FRACTION,
+                                   default=0,
                                    validator=lambda x: x >= 0)
 
         else:
@@ -189,8 +183,7 @@ def parse_request(data):
             if request['monte_carlo']:
                 request['ascent_rate_std_dev'] = \
                     _extract_parameter(data, "ascent_rate_std_dev", float,
-                                       default=ASCENT_RATE_STD_DEV_FRACTION
-                                       * request['ascent_rate'],
+                                       default=0,
                                        validator=lambda x: x >= 0)
 
             else:
@@ -208,6 +201,15 @@ def parse_request(data):
             request['balloon_mass'] = \
                 _extract_parameter(data, "balloon_mass", float,
                                    validator=lambda x: x >= 0)
+
+            if request['monte_carlo']:
+                request['helium_mass_std_dev'] = \
+                    _extract_parameter(data, "helium_mass_std_dev", float,
+                                       default=0,
+                                       validator=lambda x: x >= 0)
+
+            else:
+                request['ascent_rate_std_dev'] = 0
 
         else:
             raise RequestException(
@@ -308,7 +310,8 @@ def run_prediction(req):
                                                  ruaumoko_ds(), warningcounts,
                                                  req['burst_altitude_std_dev'],
                                                  req['descent_rate_std_dev'],
-                                                 req['wind_std_dev'])
+                                                 req['wind_std_dev'],
+                                                 req['helium_mass_std_dev'])
 
         else:
             raise InternalException("Unknown physics model '%s'." % req['physics_model'])
