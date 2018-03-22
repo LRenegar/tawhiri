@@ -305,11 +305,12 @@ def standard_profile_bpp(helium_mass, dry_mass, burst_altitude,
 
     return ((model_up, term_up), (model_down, term_down))
 
+
 def standard_profile_bpp_diameter_term(helium_mass, dry_mass, burst_diameter,
                                        sea_level_descent_rate, wind_dataset, elevation_dataset,
                                        warningcounts, burst_diameter_std_dev=0,
                                        descent_rate_std_dev=0, wind_std_dev=0,
-                                       helium_mass_std_dev = 0):
+                                       helium_mass_std_dev=0):
     """
     Make a model chain for the standard high altitude balloon situation of ascent until burst and
     descent under parachute. Ascent rate is calculated using the BPP physics model, which calculates

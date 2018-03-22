@@ -36,7 +36,7 @@ PROFILE_STANDARD = "standard_profile"
 PROFILE_FLOAT = "float_profile"
 PHYSICS_MODEL_CUSF = "CUSF"
 PHYSICS_MODEL_BPP = "UMDBPP"
-
+PHYSICS_MODEL_BPP_DIAMETER_TERM = "UMDBPP-B"
 
 
 # Util functions ##############################################################
@@ -146,9 +146,6 @@ def parse_request(data):
                                                 default=False)
 
     if request['profile'] == PROFILE_STANDARD:
-        request['burst_altitude'] = \
-            _extract_parameter(data, "burst_altitude", float,
-                               validator=lambda x: x > launch_alt)
 
         request['descent_rate'] = \
             _extract_parameter(data, "descent_rate", float,
@@ -160,11 +157,6 @@ def parse_request(data):
                                    default=0,
                                    validator=lambda x: x >= 0)
 
-            request['burst_altitude_std_dev'] = \
-                _extract_parameter(data, "burst_altitude_std_dev", float,
-                                   default=0,
-                                   validator=lambda x: x >= 0)
-
             request['wind_std_dev'] = \
                 _extract_parameter(data, "wind_std_dev", float,
                                    default=0,
@@ -172,24 +164,37 @@ def parse_request(data):
 
         else:
             request['descent_rate_std_dev'] = 0
-            request['burst_altitude_std_dev'] = 0
             request['wind_std_dev'] = 0
 
         if request['physics_model'] == PHYSICS_MODEL_CUSF:
+            request['burst_altitude'] = \
+                _extract_parameter(data, "burst_altitude", float,
+                                   validator=lambda x: x > launch_alt)
+
             request['ascent_rate'] = \
                 _extract_parameter(data, "ascent_rate", float,
                                    validator=lambda x: x > 0)
 
             if request['monte_carlo']:
+                request['burst_altitude_std_dev'] = \
+                    _extract_parameter(data, "burst_altitude_std_dev", float,
+                                       default=0,
+                                       validator=lambda x: x > launch_alt)
+
                 request['ascent_rate_std_dev'] = \
                     _extract_parameter(data, "ascent_rate_std_dev", float,
                                        default=0,
                                        validator=lambda x: x >= 0)
 
             else:
+                request['burst_altitude_std_dev'] = 0
                 request['ascent_rate_std_dev'] = 0
 
         elif request['physics_model'] == PHYSICS_MODEL_BPP:
+            request['burst_altitude'] = \
+                _extract_parameter(data, "burst_altitude", float,
+                                   validator=lambda x: x > launch_alt)
+
             request['helium_mass'] = \
                 _extract_parameter(data, "helium_mass", float,
                                    validator=lambda x: x >= 0)
@@ -203,13 +208,51 @@ def parse_request(data):
                                    validator=lambda x: x >= 0)
 
             if request['monte_carlo']:
+                request['burst_altitude_std_dev'] = \
+                    _extract_parameter(data, "burst_altitude_std_dev", float,
+                                       default=0,
+                                       validator=lambda x: x > launch_alt)
+
                 request['helium_mass_std_dev'] = \
                     _extract_parameter(data, "helium_mass_std_dev", float,
                                        default=0,
                                        validator=lambda x: x >= 0)
 
             else:
-                request['ascent_rate_std_dev'] = 0
+                request['burst_altitude_std_dev'] = 0
+                request['helium_mass_std_dev'] = 0
+
+        elif request['physics_model'] == PHYSICS_MODEL_BPP_DIAMETER_TERM:
+            request['burst_diameter'] = \
+                _extract_parameter(data, "burst_diameter", float,
+                                   validator=lambda x: x > launch_alt)
+
+            request['helium_mass'] = \
+                _extract_parameter(data, "helium_mass", float,
+                                   validator=lambda x: x >= 0)
+
+            request['payload_mass'] = \
+                _extract_parameter(data, "payload_mass", float,
+                                   validator=lambda x: x >= 0)
+
+            request['balloon_mass'] = \
+                _extract_parameter(data, "balloon_mass", float,
+                                   validator=lambda x: x >= 0)
+
+            if request['monte_carlo']:
+                request['burst_diameter_std_dev'] = \
+                    _extract_parameter(data, "burst_diameter_std_dev", float,
+                                       default=0,
+                                       validator=lambda x: x > launch_alt)
+
+                request['helium_mass_std_dev'] = \
+                    _extract_parameter(data, "helium_mass_std_dev", float,
+                                       default=0,
+                                       validator=lambda x: x >= 0)
+
+            else:
+                request['burst_diameter_std_dev'] = 0
+                request['helium_mass_std_dev'] = 0
 
         else:
             raise RequestException(
@@ -312,6 +355,12 @@ def run_prediction(req):
                                                  req['descent_rate_std_dev'],
                                                  req['wind_std_dev'],
                                                  req['helium_mass_std_dev'])
+        elif req['physics_model'] == PHYSICS_MODEL_BPP_DIAMETER_TERM:
+            stages = models.standard_profile_bpp_diameter_term(
+                req['helium_mass'], req['payload_mass'] + req['balloon_mass'],
+                req['burst_diameter'], req['descent_rate'], tawhiri_ds,
+                ruaumoko_ds(), warningcounts, req['burst_diameter_std_dev'],
+                req['descent_rate_std_dev'], req['wind_std_dev'], req['helium_mass_std_dev'])
 
         else:
             raise InternalException("Unknown physics model '%s'." % req['physics_model'])
