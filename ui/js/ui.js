@@ -369,9 +369,9 @@ function Form($wrapper) {
                 }
             }
             else { // Diameter termination
-                predictionParams.burst_diameter  = _this.convertUnits(formData.burst_diameter,  formData.unitLaunchBurstDiameter);
+                predictionParams.burst_diameter  = _this.convertUnits(formData.burst_diameter,  formData.unitBurstDiameter);
                 if(predictionParams.monte_carlo) {
-                    predictionParams.burst_diameter_std_dev = _this.convertUnits((formData.burst_diameter_param, formData.unitBurstDiameterParam))
+                    predictionParams.burst_diameter_std_dev = _this.convertUnits(formData.burst_diameter_param, formData.unitBurstDiameterParam);
                 }
             }
 

@@ -225,7 +225,7 @@ def parse_request(data):
         elif request['physics_model'] == PHYSICS_MODEL_BPP_DIAMETER_TERM:
             request['burst_diameter'] = \
                 _extract_parameter(data, "burst_diameter", float,
-                                   validator=lambda x: x > launch_alt)
+                                   validator=lambda x: x > 0)
 
             request['helium_mass'] = \
                 _extract_parameter(data, "helium_mass", float,
@@ -243,7 +243,7 @@ def parse_request(data):
                 request['burst_diameter_std_dev'] = \
                     _extract_parameter(data, "burst_diameter_std_dev", float,
                                        default=0,
-                                       validator=lambda x: x > launch_alt)
+                                       validator=lambda x: x > 0)
 
                 request['helium_mass_std_dev'] = \
                     _extract_parameter(data, "helium_mass_std_dev", float,
