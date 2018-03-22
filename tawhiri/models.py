@@ -175,6 +175,7 @@ def make_time_termination(max_time):
             return True
     return time_termination
 
+
 def make_diameter_termination(dataset, warningcounts, helium_mass, burst_diameter, dataset_errors=None):
 
     get_atmospheric_state = interpolate.make_interpolator(dataset,
@@ -340,7 +341,7 @@ def standard_profile_bpp_diameter_term(helium_mass, dry_mass, burst_diameter,
                                helium_mass, dry_mass,
                                dataset_error)
 
-    term_up = make_diameter_termination(burst_diameter)
+    term_up = make_diameter_termination(wind_dataset, warningcounts, helium_mass, burst_diameter, dataset_error)
 
     model_down = make_linear_model([make_drag_descent(wind_dataset,
                                                       warningcounts,
