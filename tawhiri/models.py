@@ -384,5 +384,34 @@ def generate_dataset_error(max_wind_deviation):
 
     return dataset_error
 
-def drag_coefficient(rho_air, balloon_radius, temperature, velocity):
-    return 0.5  # TODO should perform computation based on Reynolds #
+def drag_coefficient(rho_air, balloon_radius, temperature, ascent_velocity):
+    """
+    Returns the coefficient of drag of the balloon, calculated from Conner's drag model
+    for Reynolds numbers between 100e3 and 1.2e6. Constant drag is assumed outside of that
+    region.
+    Ref: J. P. Conner and A. S. Arena, "Near Space Balloon Performance Predictions",
+        48th AIAA Aerospace Sciences Meeting (Jan. 2010). doi: 10.2514/6.2010-37
+    :param rho_air: air density, in kg/m^3
+    :param balloon_radius: radius of the balloon, in m
+    :param temperature:
+    :param ascent_velocity: ascent velocity, in m/s
+    :return: the drag coefficient of the balloon
+    """
+    reynolds_number = 2*rho_air*balloon_radius*ascent_velocity/air_viscosity(temperature)
+    if reynolds_number < 100e3:
+        cd = 0.4982609  # to ensure continuity at Re = 100e3
+    elif reynolds_number < 1.2e6:
+        cd = 7.119e-1 - 2.568e-6*reynolds_number + 4.707e-12*math.pow(reynolds_number, 2) \
+            - 4.04e-18*math.pow(reynolds_number, 3) + 1.309e-24*math.pow(reynolds_number, 4)
+    else:
+        cd = 0.1416024  # to ensure continuity at Re = 1.2e6
+    return cd
+
+
+def air_viscosity(temperature):
+    """
+    Calculate the dynamic viscosity of air using Sutherland's Formula.
+    :param temperature: the air temperature, in K
+    :return: the dynamic viscosity, in kg/m-s
+    """
+    return 1.458e-6*math.pow(temperature, 1.5)/(temperature + 110.4)
