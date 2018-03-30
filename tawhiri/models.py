@@ -72,14 +72,13 @@ def make_bpp_ascent(dataset, warningcounts, helium_mass, system_mass, dataset_er
         balloon_radius = math.pow(3.0*helium_mass/(4.0*math.pi*rho_helium), 1.0/3.0)
         w = DEFAULT_VELOCITY
         while True:
+            w_old = w
             numerator = ((4.0 / 3.0) * math.pi * math.pow(balloon_radius, 3) * (
                         rho_air - rho_helium) - system_mass) * g0
             denominator = 0.5 * rho_air * drag_coefficient(rho_air, balloon_radius, temperature,
                                                            DEFAULT_VELOCITY) * math.pi * math.pow(balloon_radius, 2)
-            w_new = math.sqrt(numerator / denominator)
-
-            if abs(w - w_new) < VELOCITY_TOLERANCE:
-                w = w_new
+            w = math.sqrt(numerator / denominator)
+            if abs(w - w_old) < VELOCITY_TOLERANCE:
                 break
 
         h = 6371009 + alt
