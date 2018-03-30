@@ -38,6 +38,9 @@ R_helium = 2077.1  # Gas constant of helium [J/kg-K]
 
 MB_TO_PA = 100  # millibar to Pascal multiplicative conversion factor
 
+DEFAULT_VELOCITY = 6  # typical ascent velocity to use as basis for iteration
+VELOCITY_TOLERANCE = 0.05  # Tolerance for Reynolds number calculations
+
 g0 = 9.80665  # Standard acceleration of gravity [m/s^2]
 
 
@@ -67,9 +70,18 @@ def make_bpp_ascent(dataset, warningcounts, helium_mass, system_mass, dataset_er
         rho_air = pressure/R_air/temperature
         rho_helium = pressure/R_helium/temperature  # temp and pressure inside balloon assumed equal to outside
         balloon_radius = math.pow(3.0*helium_mass/(4.0*math.pi*rho_helium), 1.0/3.0)
-        numerator = ((4.0/3.0)*math.pi*math.pow(balloon_radius, 3)*(rho_air - rho_helium) - system_mass)*g0
-        denominator = 0.5*rho_air*drag_coefficient(rho_air, balloon_radius, temperature, 0)*math.pi*math.pow(balloon_radius, 2)
-        w = math.sqrt(numerator/denominator)
+        w = DEFAULT_VELOCITY
+        while True:
+            numerator = ((4.0 / 3.0) * math.pi * math.pow(balloon_radius, 3) * (
+                        rho_air - rho_helium) - system_mass) * g0
+            denominator = 0.5 * rho_air * drag_coefficient(rho_air, balloon_radius, temperature,
+                                                           DEFAULT_VELOCITY) * math.pi * math.pow(balloon_radius, 2)
+            w_new = math.sqrt(numerator / denominator)
+
+            if abs(w - w_new) < VELOCITY_TOLERANCE:
+                w = w_new
+                break
+
         h = 6371009 + alt
         dlat = _180_PI * v / h
         dlng = _180_PI * u / (h * math.cos(lat * _PI_180))
