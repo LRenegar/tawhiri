@@ -38,6 +38,8 @@ PHYSICS_MODEL_CUSF = "CUSF"
 PHYSICS_MODEL_BPP = "UMDBPP"
 PHYSICS_MODEL_BPP_DIAMETER_TERM = "UMDBPP-B"
 
+DEFAULT_WIND_AZ_STD_DEV = 5*3.14159265358979232/180  # TODO
+
 
 # Util functions ##############################################################
 def ruaumoko_ds():
@@ -157,14 +159,19 @@ def parse_request(data):
                                    default=0,
                                    validator=lambda x: x >= 0)
 
-            request['wind_std_dev'] = \
+            request['wind_mag_std_dev'] = \
                 _extract_parameter(data, "wind_std_dev", float,
                                    default=0,
                                    validator=lambda x: x >= 0)
+            if request['wind_mag_std_dev'] != 0:
+                request['wind_azimuth_std_dev'] = DEFAULT_WIND_AZ_STD_DEV
+            else:
+                request['wind_azimuth_std_dev'] = 0
 
         else:
             request['descent_rate_std_dev'] = 0
-            request['wind_std_dev'] = 0
+            request['wind_mag_std_dev'] = 0
+            request['wind_azimuth_std_dev'] = 0
 
         if request['physics_model'] == PHYSICS_MODEL_CUSF:
             request['burst_altitude'] = \
@@ -344,7 +351,8 @@ def run_prediction(req):
                                                   req['ascent_rate_std_dev'],
                                                   req['burst_altitude_std_dev'],
                                                   req['descent_rate_std_dev'],
-                                                  req['wind_std_dev'])
+                                                  req['wind_mag_std_dev'],
+                                                  req['wind_azimuth_std_dev'])
         elif req['physics_model'] == PHYSICS_MODEL_BPP:
             stages = models.standard_profile_bpp(req['helium_mass'],
                                                  req['payload_mass'] + req['balloon_mass'],
@@ -353,14 +361,16 @@ def run_prediction(req):
                                                  ruaumoko_ds(), warningcounts,
                                                  req['burst_altitude_std_dev'],
                                                  req['descent_rate_std_dev'],
-                                                 req['wind_std_dev'],
+                                                 req['wind_mag_std_dev'],
+                                                 req['wind_azimuth_std_dev'],
                                                  req['helium_mass_std_dev'])
         elif req['physics_model'] == PHYSICS_MODEL_BPP_DIAMETER_TERM:
             stages = models.standard_profile_bpp_diameter_term(
                 req['helium_mass'], req['payload_mass'] + req['balloon_mass'],
                 req['burst_diameter'], req['descent_rate'], tawhiri_ds,
                 ruaumoko_ds(), warningcounts, req['burst_diameter_std_dev'],
-                req['descent_rate_std_dev'], req['wind_std_dev'], req['helium_mass_std_dev'])
+                req['descent_rate_std_dev'], req['wind_mag_std_dev'],
+                req['wind_azimuth_std_dev'], req['helium_mass_std_dev'])
 
         else:
             raise InternalException("Unknown physics model '%s'." % req['physics_model'])
