@@ -70,7 +70,7 @@ class RangeError(ValueError):
         super(RangeError, self).__init__(s)
 
 
-def make_interpolator(dataset, WarningCounts warnings, dataset_errors=None):
+def make_interpolator(dataset, WarningCounts warnings):
     """
     Produce a function that can get wind data from `dataset`
 
@@ -78,16 +78,6 @@ def make_interpolator(dataset, WarningCounts warnings, dataset_errors=None):
     to us, and then returns a closure that can be used to retrieve
     wind velocities.
     """
-    if dataset_errors is not None:
-        assert dataset_errors.dtype == np.double
-
-        assert dataset_errors.shape == (Dataset.NUM_GFS_VARIABLES,
-                                       Dataset.NUM_GFS_LAT_STEPS,
-                                       Dataset.NUM_GFS_LNG_STEPS)
-    else:
-        dataset_errors = np.zeros((Dataset.NUM_GFS_VARIABLES,
-                                Dataset.NUM_GFS_LAT_STEPS,
-                                Dataset.NUM_GFS_LNG_STEPS))
 
     cdef float[:, :, :, :, :] data
 
@@ -97,21 +87,18 @@ def make_interpolator(dataset, WarningCounts warnings, dataset_errors=None):
     data = MagicMemoryView(dataset.array, Dataset.shape, b"f")
 
     def f(hour, lat, lng, alt):
-        return get_atmospheric_state(data, dataset_errors, warnings, hour, lat, lng, alt)
+        return get_atmospheric_state(data, warnings, hour, lat, lng, alt)
 
     return f
 
 
 cdef object get_atmospheric_state(dataset_t ds,
-                                 np.ndarray[np.double_t, ndim=3] dataset_errors,
                                  WarningCounts warnings, double hour,
                                  double lat, double lng, double alt):
     """
-    Interpolates the [u, v] wind components, temperature, and pressure at the given time and location, using
-    the given errors.
+    Interpolates the [u, v] wind components, temperature, and pressure at the given time and location.
     
     :param ds: The float array representing the dataset.
-    :param dataset_errors: The float array representing the multiplicative dataset error factors.
     :param warnings: The warning accumulator
     :param hour: The hour at which to get the atmospheric data, in fractional hours since the dataset start
     :param lat: The latitude at which to get the atmospheric data, in decimal degrees (-90 to 90)
@@ -126,9 +113,9 @@ cdef object get_atmospheric_state(dataset_t ds,
 
     pick3(hour, lat, lng, lerps)
 
-    altitude_index = find_altitude_index(ds, dataset_errors, lerps, alt)
-    lower = interpolate_lat_lng_time(ds, dataset_errors, lerps, VAR_A, altitude_index)
-    upper = interpolate_lat_lng_time(ds, dataset_errors, lerps, VAR_A, altitude_index + 1)
+    altitude_index = find_altitude_index(ds, lerps, alt)
+    lower = interpolate_lat_lng_time(ds, lerps, VAR_A, altitude_index)
+    upper = interpolate_lat_lng_time(ds, lerps, VAR_A, altitude_index + 1)
 
     if lower != upper:
         interpolation_weight = (upper - alt) / (upper - lower)
@@ -139,9 +126,9 @@ cdef object get_atmospheric_state(dataset_t ds,
 
     cdef Lerp1 alt_lerp = Lerp1(altitude_index, interpolation_weight)
 
-    u = interp4(ds, dataset_errors, lerps, alt_lerp, VAR_U)
-    v = interp4(ds, dataset_errors, lerps, alt_lerp, VAR_V)
-    t = interp4(ds, dataset_errors, lerps, alt_lerp, VAR_T)
+    u = interp4(ds, lerps, alt_lerp, VAR_U)
+    v = interp4(ds, lerps, alt_lerp, VAR_V)
+    t = interp4(ds, lerps, alt_lerp, VAR_T)
 
     p = interp_exponential(Dataset.pressures_sorted[altitude_index],
                            Dataset.pressures_sorted[altitude_index + 1],
@@ -210,45 +197,36 @@ cdef long pick3(double hour, double lat, double lng, Lerp3[8] out) except -1:
     return 0
 
 cdef double interpolate_lat_lng_time(dataset_t ds,
-                                     np.ndarray[np.double_t, ndim=3] dataset_errors,
                                      Lerp3[8] lerps, long variable,
                                      long level_index):
     """ 
     Interpolate a variable at a given pressure level with respect to latitude, 
     longitude, and time. 
-    :param dataset_t ds: The dataset to interpolate from. 
-    :param np.ndarray dataset_errors: A 3-dimensional ndarray containing an 
-            error (as a fraction of the dataset value) for each dataset 
-            variable, latitude, longitude.  
+    :param dataset_t ds: The dataset to interpolate from.  
     :param lerps: TODO 
     :param long variable: The dataset index of the variable to interpolate. 
     :param long level_index: The index of the pressure level to interpolate at. 
     :return: The value of the interpolated variable. 
     """
-    cdef double interpolated_value, dataset_value, dataset_error_val
+    cdef double interpolated_value, dataset_value
 
     interpolated_value = 0
     for i in range(8):
         lerp = lerps[i]
         dataset_value = ds[lerp.hour, level_index, variable,
                            lerp.latitude_index, lerp.longitude_index]
-        dataset_error_val = dataset_errors[variable, lerp.latitude_index,
-                                           lerp.longitude_index]
         # Interpolation value is weighted average of nearest dataset values
         interpolated_value += \
-            dataset_value * lerp.interpolation_weight * (1.0 + dataset_error_val)
+            dataset_value * lerp.interpolation_weight
 
     return interpolated_value
 
 
 # Searches for the largest index lower than target, excluding the topmost level.
-cdef long find_altitude_index(dataset_t ds,
-                              np.ndarray[np.double_t, ndim=3] dataset_errors,
-                              Lerp3[8] lerps, double target):
+cdef long find_altitude_index(dataset_t ds, Lerp3[8] lerps, double target):
     """ 
     Search for the largest altitude index lower than the target, excluding the topmost level. 
     :param dataset_t ds: The dataset to search. 
-    :param dataset_errors: TODO 
     :param lerps: TODO 
     :param target: The altitude to search for 
     :return: The index of the highest altitude layer lower than the target that. 
@@ -262,7 +240,7 @@ cdef long find_altitude_index(dataset_t ds,
 
     while lower < upper: # Search by bisection
         mid = (lower + upper + 1) / 2
-        test = interpolate_lat_lng_time(ds, dataset_errors, lerps, VAR_A, mid)
+        test = interpolate_lat_lng_time(ds, lerps, VAR_A, mid)
         if target <= test:
             upper = mid - 1
         else:
@@ -271,13 +249,12 @@ cdef long find_altitude_index(dataset_t ds,
     return lower
 
 cdef double interp4(dataset_t ds,
-                    np.ndarray[np.double_t, ndim=3] dataset_errors,
                     Lerp3[8] lerps,
                     Lerp1 alt_lerp,
                     long variable):
-    lower = interpolate_lat_lng_time(ds, dataset_errors, lerps, variable, alt_lerp.index)
+    lower = interpolate_lat_lng_time(ds, lerps, variable, alt_lerp.index)
     # and we can infer what the other lerp1 is...
-    upper = interpolate_lat_lng_time(ds, dataset_errors, lerps, variable, alt_lerp.index + 1)
+    upper = interpolate_lat_lng_time(ds, lerps, variable, alt_lerp.index + 1)
     return lower * alt_lerp.interpolation_weight + upper * (1 - alt_lerp.interpolation_weight)
 
 cdef double interp_exponential(double lower, double upper,
@@ -289,4 +266,4 @@ cdef double interp_exponential(double lower, double upper,
     :param interpolation_weight: The interpolation weight
     :return: The interpolated value
     """
-    return lower*exp(log(upper/lower)*interpolation_weight)
+    return lower*exp(log(upper/lower)*interpolation_weight)  # TODO this is questionable

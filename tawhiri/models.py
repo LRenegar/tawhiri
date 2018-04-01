@@ -41,7 +41,12 @@ MB_TO_PA = 100  # millibar to Pascal multiplicative conversion factor
 DEFAULT_VELOCITY = 6  # typical ascent velocity to use as basis for iteration
 VELOCITY_TOLERANCE = 0.05  # Tolerance for Reynolds number calculations
 
+DATASET_ERROR_VARIABLES = 2  # Wind magnitude and velocity
+
 g0 = 9.80665  # Standard acceleration of gravity [m/s^2]
+
+VAR_WIND_MAG_ERROR = 0
+VAR_WIND_ANGLE_ERROR = 1
 
 
 ## Up/Down Models #############################################################
@@ -59,13 +64,14 @@ def make_bpp_ascent(dataset, warningcounts, helium_mass, system_mass, dataset_er
         pressure, and altitude, and the balloon's altitude-varying radius.
     """
     get_atmospheric_state = interpolate.make_interpolator(dataset,
-                                                          warningcounts,
-                                                          dataset_errors)
+                                                          warningcounts)
     dataset_epoch = calendar.timegm(dataset.ds_time.timetuple())
 
     def state_function(t, lat, lng, alt):
         t -= dataset_epoch
         u, v, temperature, pressure = get_atmospheric_state(t / 3600.0, lat, lng, alt)
+        if dataset_errors is not None:
+            u, v = vary_wind_velocity(u, v, lat, lng, dataset_errors)
         pressure = pressure * MB_TO_PA  # convert to consistent units
         rho_air = pressure/R_air/temperature
         rho_helium = pressure/R_helium/temperature  # temp and pressure inside balloon assumed equal to outside
@@ -101,13 +107,11 @@ def make_drag_descent(dataset, warningcounts, sea_level_descent_rate, dataset_er
     :param dataset: The atmospheric dataset to use
     :param warningcounts: The warningcounts object to use
     :param sea_level_descent_rate: The balloon's descent rate at sea level in a standard atmosphere
-    :param dataset_errors: The dataset errors object to use, if any
     :return: The parachute descent model, suitable for use in the solver
     """
 
     get_atmospheric_state = interpolate.make_interpolator(dataset,
-                                                          warningcounts,
-                                                          dataset_errors)
+                                                          warningcounts)
     dataset_epoch = calendar.timegm(dataset.ds_time.timetuple())
 
     def density(t, lat, lng, alt):
@@ -133,12 +137,13 @@ def make_wind_velocity(dataset, warningcounts, dataset_errors=None):
        altitude. The `dataset` argument is the wind dataset in use.
     """
     get_atmospheric_state = interpolate.make_interpolator(dataset,
-                                                          warningcounts,
-                                                          dataset_errors)
+                                                          warningcounts)  # TODO dataset errors
     dataset_epoch = calendar.timegm(dataset.ds_time.timetuple())
     def wind_velocity(t, lat, lng, alt):
         t -= dataset_epoch
         u, v = get_atmospheric_state(t / 3600.0, lat, lng, alt)[0:2]
+        if dataset_errors is not None:
+            u, v = vary_wind_velocity(u, v, lat, lng, dataset_errors)
         R = 6371009 + alt
         dlat = _180_PI * v / R
         dlng = _180_PI * u / (R * math.cos(lat * _PI_180))
@@ -190,8 +195,7 @@ def make_time_termination(max_time):
 def make_diameter_termination(dataset, warningcounts, helium_mass, burst_diameter, dataset_errors=None):
 
     get_atmospheric_state = interpolate.make_interpolator(dataset,
-                                                          warningcounts,
-                                                          dataset_errors)
+                                                          warningcounts)
     dataset_epoch = calendar.timegm(dataset.ds_time.timetuple())
 
     def terminator_function(t, lat, lng, alt):
@@ -234,7 +238,8 @@ def make_any_terminator(terminators):
 def standard_profile_cusf(ascent_rate, burst_altitude, descent_rate,
                           wind_dataset, elevation_dataset, warningcounts,
                           ascent_rate_std_dev=0, burst_altitude_std_dev=0,
-                          descent_rate_std_dev=0, wind_std_dev=0):
+                          descent_rate_std_dev=0, wind_mag_std_dev=0,
+                          wind_azimuth_std_dev=0):
     """Make a model chain for the standard high altitude balloon situation of
        ascent at a constant rate followed by burst and subsequent descent
        at terminal velocity under parachute with a predetermined sea level
@@ -250,7 +255,10 @@ def standard_profile_cusf(ascent_rate, burst_altitude, descent_rate,
     burst_altitude = normalvariate(burst_altitude, burst_altitude_std_dev)
     descent_rate = normalvariate(descent_rate, descent_rate_std_dev)
 
-    dataset_error = generate_dataset_error(wind_std_dev)
+    if wind_mag_std_dev != 0 or wind_azimuth_std_dev != 0:
+        dataset_error = generate_dataset_error(wind_mag_std_dev, wind_azimuth_std_dev)
+    else:
+        dataset_error = None
 
     model_up = make_linear_model([make_constant_ascent(ascent_rate),
                                   make_wind_velocity(wind_dataset,
@@ -273,8 +281,8 @@ def standard_profile_cusf(ascent_rate, burst_altitude, descent_rate,
 def standard_profile_bpp(helium_mass, dry_mass, burst_altitude,
                          sea_level_descent_rate, wind_dataset, elevation_dataset,
                          warningcounts, burst_altitude_std_dev=0,
-                         descent_rate_std_dev=0, wind_std_dev=0,
-                         helium_mass_std_dev = 0):
+                         descent_rate_std_dev=0, wind_mag_std_dev=0,
+                         wind_azimuth_std_dev=0, helium_mass_std_dev = 0):
     """
     Make a model chain for the standard high altitude balloon situation of ascent until burst and
     descent under parachute. Ascent rate is calculated using the BPP physics model, which calculates
@@ -285,11 +293,12 @@ def standard_profile_bpp(helium_mass, dry_mass, burst_altitude,
     :param burst_altitude: The burst altitude, in m
     :param sea_level_descent_rate: The descent rate of the system at sea level, in m/s
     :param wind_dataset: The wind dataset to use
-    :param elevation_dataset: The ruaumoko elevation dataset to use
+    :param elevation_dataset: The ruaumoko elevation dataset to use.
     :param warningcounts: The warningcounts object to use
     :param burst_altitude_std_dev: The standard deviation in burst altitude to use for Monte Carlo runs, in m
     :param descent_rate_std_dev: The standard deviation in sea level descent rate to use for Monte Carlo runs, in m/s
-    :param wind_std_dev: The standard deviation in wind magnitudes to use, as a fraction
+    :param wind_mag_std_dev: The standard deviation in wind magnitudes to use, as a fraction
+    :param wind_azimuth_std_dev: The standard deviation in wind azimuth to use, in radians
     :param helium_mass_std_dev The standard deviation for helium mass to use in Monte Carlo runs, in kg
     :return: A tuple of (model, terminator) pairs representing the stages of the flight
     """
@@ -298,7 +307,10 @@ def standard_profile_bpp(helium_mass, dry_mass, burst_altitude,
     sea_level_descent_rate = normalvariate(sea_level_descent_rate, descent_rate_std_dev)
     helium_mass = normalvariate(helium_mass, helium_mass_std_dev)
 
-    dataset_error = generate_dataset_error(wind_std_dev)
+    if wind_mag_std_dev != 0 or wind_azimuth_std_dev != 0:
+        dataset_error = generate_dataset_error(wind_mag_std_dev, wind_azimuth_std_dev)
+    else:
+        dataset_error = None
 
     model_up = make_bpp_ascent(wind_dataset, warningcounts,
                                helium_mass, dry_mass,
@@ -321,8 +333,8 @@ def standard_profile_bpp(helium_mass, dry_mass, burst_altitude,
 def standard_profile_bpp_diameter_term(helium_mass, dry_mass, burst_diameter,
                                        sea_level_descent_rate, wind_dataset, elevation_dataset,
                                        warningcounts, burst_diameter_std_dev=0,
-                                       descent_rate_std_dev=0, wind_std_dev=0,
-                                       helium_mass_std_dev=0):
+                                       descent_rate_std_dev=0,  wind_mag_std_dev=0,
+                                       wind_azimuth_std_dev=0, helium_mass_std_dev=0):
     """
     Make a model chain for the standard high altitude balloon situation of ascent until burst and
     descent under parachute. Ascent rate is calculated using the BPP physics model, which calculates
@@ -337,7 +349,8 @@ def standard_profile_bpp_diameter_term(helium_mass, dry_mass, burst_diameter,
     :param warningcounts: The warningcounts object to use
     :param burst_diameter_std_dev: The standard deviation in balloon burst diameter to use for Monte Carlo runs, in m
     :param descent_rate_std_dev: The standard deviation in sea level descent rate to use for Monte Carlo runs, in m/s
-    :param wind_std_dev: The standard deviation in wind magnitudes to use, as a fraction
+    :param wind_mag_std_dev: The standard deviation in wind magnitudes to use, as a fraction
+    :param wind_azimuth_std_dev: The standard deviation in wind azimuth to use, in radians
     :param helium_mass_std_dev The standard deviation for helium mass to use in Monte Carlo runs, in kg
     :return: A tuple of (model, terminator) pairs representing the stages of the flight
     """
@@ -346,7 +359,7 @@ def standard_profile_bpp_diameter_term(helium_mass, dry_mass, burst_diameter,
     sea_level_descent_rate = normalvariate(sea_level_descent_rate, descent_rate_std_dev)
     helium_mass = normalvariate(helium_mass, helium_mass_std_dev)
 
-    dataset_error = generate_dataset_error(wind_std_dev)
+    dataset_error = generate_dataset_error(wind_mag_std_dev, wind_azimuth_std_dev)
 
     model_up = make_bpp_ascent(wind_dataset, warningcounts,
                                helium_mass, dry_mass,
@@ -381,17 +394,19 @@ def float_profile(ascent_rate, float_altitude, stop_time, dataset, warningcounts
 
 ## Support Functions ##########################################################
 
-def generate_dataset_error(max_wind_deviation):
-    dataset_error = np.zeros((Dataset.NUM_GFS_VARIABLES,
+def generate_dataset_error(wind_mag_deviation, wind_angle_deviation):
+    dataset_error = np.zeros((DATASET_ERROR_VARIABLES,
                             Dataset.NUM_GFS_LAT_STEPS,
                             Dataset.NUM_GFS_LNG_STEPS))
 
-    for var_index, lat_index, lng_index in itertools.product(
-            range(1, Dataset.NUM_GFS_VARIABLES),  # TODO magic number
+    for lat_index, lng_index in itertools.product(
             range(Dataset.NUM_GFS_LAT_STEPS),
             range(Dataset.NUM_GFS_LNG_STEPS)):
-        dataset_error[var_index, lat_index, lng_index] =\
-            uniform(-max_wind_deviation, max_wind_deviation)
+        dataset_error[VAR_WIND_MAG_ERROR, lat_index, lng_index] =\
+            normalvariate(1, wind_mag_deviation)
+
+        dataset_error[VAR_WIND_ANGLE_ERROR, lat_index, lng_index] =\
+            normalvariate(0, wind_angle_deviation)
 
     return dataset_error
 
@@ -426,3 +441,48 @@ def air_viscosity(temperature):
     :return: the dynamic viscosity, in kg/m-s
     """
     return 1.458e-6*math.pow(temperature, 1.5)/(temperature + 110.4)
+
+def vary_wind_velocity(u_nominal, v_nominal, lat, lng, dataset_errors):
+    """
+    TODO
+    :param u_nominal:
+    :param v_nominal:
+    :param lat:
+    :param lng:
+    :param dataset_errors:
+    :return:
+    """
+    lat_index, lat_interpolation_weight = get_lat_lng_index(-90.0, 0.5, lat)
+    lng_index, lng_interpolation_weight = get_lat_lng_index(0, 0.5, lng)
+
+    # multiplicative error
+    mag_error = dataset_errors[VAR_WIND_MAG_ERROR, lat_index, lng_index] * ( 1 - lat_interpolation_weight) * (1 - lng_interpolation_weight) + \
+        dataset_errors[VAR_WIND_MAG_ERROR, lat_index + 1, lng_index] * lat_interpolation_weight * (1 - lng_interpolation_weight) + \
+        dataset_errors[VAR_WIND_MAG_ERROR, lat_index, lng_index + 1] * (1 - lat_interpolation_weight) * lng_interpolation_weight + \
+        dataset_errors[VAR_WIND_MAG_ERROR, lat_index + 1, lng_index + 1] * lat_interpolation_weight * lng_interpolation_weight
+
+    # in radians
+    angle_error = dataset_errors[VAR_WIND_ANGLE_ERROR, lat_index, lng_index] * ( 1 - lat_interpolation_weight) * (1 - lng_interpolation_weight) + \
+        dataset_errors[VAR_WIND_ANGLE_ERROR, lat_index + 1, lng_index] * lat_interpolation_weight * (1 - lng_interpolation_weight) + \
+        dataset_errors[VAR_WIND_ANGLE_ERROR, lat_index, lng_index + 1] * (1 - lat_interpolation_weight) * lng_interpolation_weight + \
+        dataset_errors[VAR_WIND_ANGLE_ERROR, lat_index + 1, lng_index + 1] * lat_interpolation_weight * lng_interpolation_weight
+
+    u = mag_error*(u_nominal*math.cos(angle_error) - v_nominal*math.sin(angle_error))
+    v = mag_error*(u_nominal*math.sin(angle_error) + v_nominal*math.cos(angle_error))
+
+    return u, v
+
+def get_lat_lng_index(start, step_size, value):
+    """
+    TODO
+    :param start:
+    :param step_size:
+    :param value:
+    :return:
+    """
+    a = (value - start) / step_size
+    index = math.floor(a)
+    interpolation_weight = a - index  # discard integer part (characteristic)
+    return index, interpolation_weight
+
+
