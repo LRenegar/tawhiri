@@ -21,7 +21,7 @@
 Perform numerical integration of the balloon state.
 """
 
-def solve(t, lat, lng, alt, chain):
+def solve(t, lat, lng, alt, t_film, t_gas, chain):
     """Solve from initial conditions `t`, `lat`, `lng`, and `alt`, using
        models and termination criteria from `chain`, an iterable of (model,
        terminator) pairs which make up each stage of the flight.
@@ -30,7 +30,7 @@ def solve(t, lat, lng, alt, chain):
     for model, terminator in chain:
         stage = rk4(t, lat, lng, alt, model, terminator)
         results.append(stage)
-        t, lat, lng, alt = stage[-1]
+        t, lat, lng, alt, t_film, t_gas = stage[-1]
     return results
 
 # Keeping all the components as separate variables is quite unpleasant.
@@ -43,6 +43,8 @@ cdef struct Vector:
     double lat
     double lng
     double alt
+    double t_film
+    double t_gas
 
 cdef Vector vecadd(Vector a, double k, Vector b):
     """a + k * b"""
@@ -50,6 +52,8 @@ cdef Vector vecadd(Vector a, double k, Vector b):
     r.lat = a.lat + k * b.lat
     r.lng = a.lng + k * b.lng
     r.alt = a.alt + k * b.alt
+    r.t_film = a.t_film + k * b.t_film
+    r.t_gas = a.t_gas + k * b.t_gas
     r.lng %= 360.0
     return r
 
@@ -78,11 +82,13 @@ cdef Vector veclerp(Vector a, Vector b, double l):
     r.lat = lerp(a.lat, b.lat, l)
     r.lng = lnglerp(a.lng, b.lng, l)
     r.alt = lerp(a.alt, b.alt, l)
+    r.t_film = lerp(a.t_film, b.t_film, l)
+    r.t_gas = lerp(a.t_gas, b.t_gas, l)
     return r
 
 cdef Vector tuptovec(object tup):
     cdef Vector r
-    r.lat, r.lng, r.alt = tup
+    r.lat, r.lng, r.alt, r.t_film, r.t_gas = tup
     return r
 
 # Don't appear to be able to cdef closures / make efficient closures.
@@ -94,12 +100,13 @@ cdef class Configuration:
         self.terminator = terminator
 
     cdef Vector f(self, double t, Vector y) except *:
-        return tuptovec(self.model(t, y.lat, y.lng, y.alt))
+        return tuptovec(self.model(t, y.lat, y.lng, y.alt, y.t_film, y.t_gas))
 
     cdef bint tc(self, double t, Vector y) except *:
-        return self.terminator(t, y.lat, y.lng, y.alt)
+        return self.terminator(t, y.lat, y.lng, y.alt, y.t_film, y.t_gas)
 
 def rk4(double t, double lat, double lng, double alt,
+        double t_film, double t_gas,
         object model, object terminator,
         double dt=60.0, double termination_tolerance=0.01):
     """
@@ -111,9 +118,9 @@ def rk4(double t, double lat, double lng, double alt,
 
     # the current location
     cdef Vector y
-    y.lat, y.lng, y.alt = (lat, lng, alt)
+    y.lat, y.lng, y.alt, y.t_film, y.t_gas = (lat, lng, alt, t_film, t_gas)
 
-    result = [(t, y.lat, y.lng, y.alt)]
+    result = [(t, y.lat, y.lng, y.alt, y.t_film, y.t_gas)]
 
     # rk4 variables
     cdef Vector k1, k2, k3, k4
@@ -147,7 +154,7 @@ def rk4(double t, double lat, double lng, double alt,
         t = t2
         y = y2
 
-        result.append((t, y.lat, y.lng, y.alt))
+        result.append((t, y.lat, y.lng, y.alt, y.t_film, y.t_gas))
 
     # ... and binary search to find a point (t3, y3) between
     # (t, y) and (t2, y2) close to where the terminator becomes true
@@ -176,7 +183,7 @@ def rk4(double t, double lat, double lng, double alt,
             left = mid
 
     # add the final point to the result
-    result.append((t3, y3.lat, y3.lng, y3.alt))
+    result.append((t3, y3.lat, y3.lng, y3.alt, y3.t_film, y3.t_gas))
     # the point (t2, y2) is discarded
 
     return result

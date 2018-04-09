@@ -388,7 +388,7 @@ def run_prediction(req):
     try:
         result = solver.solve(req['launch_datetime'], req['launch_latitude'],
                               req['launch_longitude'], req['launch_altitude'],
-                              stages)
+                              0.0, 0.0, stages)  # TODO initial temperature
     except Exception as e:
         raise PredictionException("Prediction did not complete: '%s'." %
                                   str(e))
@@ -424,7 +424,7 @@ def _parse_stages(labels, data):
             'longitude': lon,
             'altitude': alt,
             'datetime': _timestamp_to_rfc3339(dt),
-            } for dt, lat, lon, alt in leg]
+            } for dt, lat, lon, alt, t_film, t_gas in leg]
         prediction.append(stage)
     return prediction
 

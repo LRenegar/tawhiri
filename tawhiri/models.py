@@ -54,8 +54,8 @@ VAR_WIND_ANGLE_ERROR = 1
 
 def make_constant_ascent(ascent_rate):
     """Return a constant-ascent model at `ascent_rate` (m/s)"""
-    def constant_ascent(t, lat, lng, alt):
-        return 0.0, 0.0, ascent_rate
+    def constant_ascent(t, lat, lng, alt, t_film, t_gas):
+        return 0.0, 0.0, ascent_rate, 0.0, 0.0
     return constant_ascent
 
 def make_bpp_ascent(dataset, warningcounts, helium_mass, system_mass, dataset_errors=None):
@@ -67,14 +67,14 @@ def make_bpp_ascent(dataset, warningcounts, helium_mass, system_mass, dataset_er
                                                           warningcounts)
     dataset_epoch = calendar.timegm(dataset.ds_time.timetuple())
 
-    def state_function(t, lat, lng, alt):
+    def state_function(t, lat, lng, alt, t_film, t_gas):
         t -= dataset_epoch
         u, v, temperature, pressure = get_atmospheric_state(t / 3600.0, lat, lng, alt)
         if dataset_errors is not None:
             u, v = vary_wind_velocity(u, v, lat, lng, dataset_errors)
         pressure = pressure * MB_TO_PA  # convert to consistent units
         rho_air = pressure/R_air/temperature
-        rho_helium = pressure/R_helium/temperature  # temp and pressure inside balloon assumed equal to outside
+        rho_helium = pressure/R_helium/temperature  # TODO change to t_gas
         balloon_radius = math.pow(3.0*helium_mass/(4.0*math.pi*rho_helium), 1.0/3.0)
         w = DEFAULT_VELOCITY
         while True:
@@ -90,7 +90,7 @@ def make_bpp_ascent(dataset, warningcounts, helium_mass, system_mass, dataset_er
         h = 6371009 + alt
         dlat = _180_PI * v / h
         dlng = _180_PI * u / (h * math.cos(lat * _PI_180))
-        return dlat, dlng, w
+        return dlat, dlng, w, 0.0, 0.0  # TODO add temperature math
     return state_function
 
 
@@ -123,8 +123,8 @@ def make_drag_descent(dataset, warningcounts, sea_level_descent_rate, dataset_er
     # This is actually sqrt(2*g0*BC), where BC is the canonical ballistic coefficient of M/C_d/A
     ballistic_coefficient = sea_level_descent_rate * 1.1068  # Sea-level density of 1.225 kg/m^3
 
-    def drag_descent(t, lat, lng, alt):
-        return 0.0, 0.0, -ballistic_coefficient/math.sqrt(density(t, lat, lng, alt))
+    def drag_descent(t, lat, lng, alt, t_film, t_gas):
+        return 0.0, 0.0, -ballistic_coefficient/math.sqrt(density(t, lat, lng, alt)), 0.0, 0.0
     return drag_descent
 
 
@@ -139,7 +139,7 @@ def make_wind_velocity(dataset, warningcounts, dataset_errors=None):
     get_atmospheric_state = interpolate.make_interpolator(dataset,
                                                           warningcounts)  # TODO dataset errors
     dataset_epoch = calendar.timegm(dataset.ds_time.timetuple())
-    def wind_velocity(t, lat, lng, alt):
+    def wind_velocity(t, lat, lng, alt, t_film, t_gas):
         t -= dataset_epoch
         u, v = get_atmospheric_state(t / 3600.0, lat, lng, alt)[0:2]
         if dataset_errors is not None:
@@ -147,7 +147,7 @@ def make_wind_velocity(dataset, warningcounts, dataset_errors=None):
         R = 6371009 + alt
         dlat = _180_PI * v / R
         dlng = _180_PI * u / (R * math.cos(lat * _PI_180))
-        return dlat, dlng, 0.0
+        return dlat, dlng, 0.0, 0.0, 0.0
     return wind_velocity
 
 
@@ -158,19 +158,19 @@ def make_burst_termination(burst_altitude):
     """Return a burst-termination criteria, which terminates integration
        when the altitude reaches `burst_altitude`.
     """
-    def burst_termination(t, lat, lng, alt):
-        if alt >= burst_altitude:
+    def burst_termination(t, lat, lng, alt, t_film, t_gas):
+        if alt >= burst_altitude:  # TODO return False otherwise?
             return True
     return burst_termination
 
 
-def sea_level_termination(t, lat, lng, alt):
+def sea_level_termination(t, lat, lng, alt, t_film, t_gas):
     """A termination criteria which terminates integration when
        the altitude is less than (or equal to) zero.
 
        Note that this is not a model factory.
     """
-    if alt <= 0:
+    if alt <= 0:  # TODO return False otherwise?
         return True
 
 def make_elevation_data_termination(dataset=None):
@@ -178,7 +178,7 @@ def make_elevation_data_termination(dataset=None):
        altitude goes below ground level, using the elevation data
        in `dataset` (which should be a ruaumoko.Dataset).
     """
-    def tc(t, lat, lng, alt):
+    def tc(t, lat, lng, alt, t_film, t_gas):
         return dataset.get(lat, lng) > alt
     return tc
 
@@ -186,7 +186,7 @@ def make_time_termination(max_time):
     """A time based termination criteria, which terminates integration when
        the current time is greater than `max_time` (a UNIX timestamp).
     """
-    def time_termination(t, lat, lng, alt):
+    def time_termination(t, lat, lng, alt, t_film, t_gas):
         if t > max_time:
             return True
     return time_termination
@@ -198,7 +198,7 @@ def make_diameter_termination(dataset, warningcounts, helium_mass, burst_diamete
                                                           warningcounts)
     dataset_epoch = calendar.timegm(dataset.ds_time.timetuple())
 
-    def terminator_function(t, lat, lng, alt):
+    def terminator_function(t, lat, lng, alt, t_film, t_gas):
         t -= dataset_epoch
         temperature, pressure = get_atmospheric_state(t / 3600.0, lat, lng, alt)[2:4]
         pressure = pressure * MB_TO_PA  # convert to consistent units
@@ -214,12 +214,12 @@ def make_diameter_termination(dataset, warningcounts, helium_mass, burst_diamete
 def make_linear_model(models):
     """Return a model that returns the sum of all the models in `models`.
     """
-    def linear_model(t, lat, lng, alt):
-        dlat, dlng, dalt = 0.0, 0.0, 0.0
+    def linear_model(t, lat, lng, alt, t_film, t_gas):
+        dlat, dlng, dalt, dt_film, dt_gas = 0.0, 0.0, 0.0, 0.0, 0.0
         for model in models:
-            d = model(t, lat, lng, alt)
-            dlat, dlng, dalt = dlat + d[0], dlng + d[1], dalt + d[2]
-        return dlat, dlng, dalt
+            d = model(t, lat, lng, alt, t_film, t_gas)
+            dlat, dlng, dalt, dt_film, dt_gas = dlat + d[0], dlng + d[1], dalt + d[2], dt_film + d[3], dt_gas + d[4]
+        return dlat, dlng, dalt, dt_film, dt_gas
     return linear_model
 
 
@@ -227,8 +227,8 @@ def make_any_terminator(terminators):
     """Return a terminator that terminates when any of `terminators` would
        terminate.
     """
-    def terminator(t, lat, lng, alt):
-        return any(term(t, lat, lng, alt) for term in terminators)
+    def terminator(t, lat, lng, alt, t_film, t_gas):
+        return any(term(t, lat, lng, alt, t_film, t_gas) for term in terminators)
     return terminator
 
 
