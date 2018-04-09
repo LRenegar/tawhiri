@@ -28,7 +28,7 @@ def solve(t, lat, lng, alt, t_film, t_gas, chain):
     """
     results = []
     for model, terminator in chain:
-        stage = rk4(t, lat, lng, alt, model, terminator)
+        stage = rk4(t, lat, lng, alt, t_film, t_gas, model, terminator)
         results.append(stage)
         t, lat, lng, alt, t_film, t_gas = stage[-1]
     return results
