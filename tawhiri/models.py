@@ -82,7 +82,7 @@ def make_bpp_ascent(dataset, warningcounts, helium_mass, system_mass, dataset_er
             numerator = ((4.0 / 3.0) * math.pi * math.pow(balloon_radius, 3) * (
                         rho_air - rho_helium) - system_mass) * g0
             denominator = 0.5 * rho_air * drag_coefficient(rho_air, balloon_radius, temperature,
-                                                           DEFAULT_VELOCITY) * math.pi * math.pow(balloon_radius, 2)
+                                                           w) * math.pi * math.pow(balloon_radius, 2)
             w = math.sqrt(numerator / denominator)
             if abs(w - w_old) < VELOCITY_TOLERANCE:
                 break
@@ -355,7 +355,8 @@ def standard_profile_bpp_diameter_term(helium_mass, dry_mass, burst_diameter,
     :return: A tuple of (model, terminator) pairs representing the stages of the flight
     """
 
-    burst_diameter = normalvariate(burst_diameter, burst_diameter_std_dev)
+    burst_diameter = burst_diameter*np.random.weibull(burst_diameter_std_dev)  # TODO
+
     sea_level_descent_rate = normalvariate(sea_level_descent_rate, descent_rate_std_dev)
     helium_mass = normalvariate(helium_mass, helium_mass_std_dev)
 
