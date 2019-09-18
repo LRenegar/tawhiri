@@ -1065,6 +1065,7 @@ function ProgressBar($wrapper) {
 var services = {
     geolocation: {
         getIPPosition: function(callback) {
+            /*
             $.get('https://freegeoip.net/json/', null, function(data) {
                 if (isNumber(data.latitude) && isNumber(data.longitude)) {
                     callback(new google.maps.LatLng(data.latitude, data.longitude));
@@ -1073,6 +1074,10 @@ var services = {
                 console.log('IP Geolocation position failed');
                 callback(null);
             });
+            */
+            console.log("IP Geolocation disabled.");
+            callback(null);
+            
         },
         gpsGeolocation: navigator.geolocation,
         getGPSPosition: function(callback) {
