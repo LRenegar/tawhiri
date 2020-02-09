@@ -426,7 +426,7 @@ MapObjects = {
     }
 };
 
-function Map($wrapper) {
+function TawhiriMap($wrapper) {
     var _this = this;
     this.$wrapper = $wrapper;
     this.$canvas = this.$wrapper.children('.map-canvas');

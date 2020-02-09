@@ -27,7 +27,7 @@ window.setTimeout = function(callback, timeout) {
 };
 
 $(function() {
-    map = new Map($('#map-wrap'));
+    map = new TawhiriMap($('#map-wrap'));
     form = new Form($('#form-wrap'));
     notifications = new Notifications($('#notification-area'));
 });
