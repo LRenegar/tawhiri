@@ -15,7 +15,7 @@ cd ../..
 cp --recursive ./tawhiri /srv/tawhiri
 cd /srv/tawhiri
 apt update
-apt install supervisor python3-dev python3-venv virtualenv python-certbot-nginx imagemagick supervisor build-essential libgrib-api-dev libevent-dev libpng-dev libeccodes-dev
+apt install supervisor python3-dev python3-venv virtualenv imagemagick build-essential libgrib-api-dev libevent-dev libpng-dev libeccodes-dev
 useradd -r tawhiri
 usermod -L tawhiri
 chown --recursive tawhiri:tawhiri .
@@ -26,9 +26,9 @@ python3 -m venv venv
 source venv/bin/activate
 pip install numpy wheel
 pip install pyproj
+pip install pygrib gevent
 pip install -r requirements.txt
 python setup.py build_ext --inplace
-pip install pygrib gevent
 ruaumoko-download  # TODO may need to adust imagemagick resource settings for this to work
 exit
 
@@ -43,6 +43,6 @@ supervisorctl reread
 supervisorctl restart all
 
 # Uncomment lines to deploy to nginx
-#apt install nginx
+#apt install nginx python-certbot-nginx
 #cp deploy/nginx.conf /etc/nginx/conf.d/tawhiri.conf
  
