@@ -4,9 +4,11 @@
 
 ## Introduction
 
-Tawhiri is the name given to the next version of the CUSF Landing Prediction
-Software, which will probably be different enough from the current version
-(see below) to warrant a new name.
+Tawhiri is a trajectory prediction software for high-altitude balloons originally
+developed by the Cambridge University Spaceflight (CUSF) team behind
+http://predict.habhub.org. This version has been significantly modified from the
+original CUSF code to implement Monte Carlo capabilities in order to bettter
+account for uncertainty in the balloon's trajectory.
 
 The name comes from a
 [M&#257;ori](http://en.wikipedia.org/wiki/M%C4%81ori_people)
@@ -24,13 +26,15 @@ general](http://www.cusf.co.uk/wiki/landing_predictor).
 
 ## Setup
 
-### Predictor
-
-…is written for Python 3, is compatible with Python 2, and needs Cython:
+See the deployment example in the ```deploy``` folder for a more comprehensive example.
 
 ```bash
-$ virtualenv venv
+$ apt install libgrib-api-dev libevent-dev libpng-dev libeccodes-dev
+$ python3 -m venv venv
 $ source venv/bin/activate
+$ pip install numpy wheel
+$ pip install pyproj
+$ pip install pygrib gevent
 $ pip install -r requirements.txt
 $ python setup.py build_ext --inplace
 ```
@@ -38,25 +42,6 @@ $ python setup.py build_ext --inplace
 The last line (re-)builds the Cython extensions, and needs to be run again
 after modifying any `.pyx` files.
 
-
-### Downloader
-
-The downloader uses gevent, so we are disappointingly restricted to running
-it under Python 2 for now (Issue #18).
-
-```bash
-$ sudo aptitude install libevent-dev libjasper-dev libopenjpeg-dev libpng-dev
-```
-
-Acquire a sufficiently modern version of `libgrib-api-dev` from APT. The
-version in 12.04 is too old. 1.10.4 is known to work.
-
-```bash
-$ virtualenv -p python2 venv
-$ source venv/bin/activate
-$ pip install numpy
-$ pip install pygrib==2.0.0 pyproj 'gevent<1.0'
-```
 
 ## License
 
