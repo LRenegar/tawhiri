@@ -45,6 +45,7 @@ from collections import namedtuple
 from datetime import datetime, timedelta
 from socket import inet_ntoa
 import gevent.local
+from gevent import GreenletExit
 from gevent import sleep
 from gevent import greenlet
 from gevent.timeout import Timeout
@@ -374,7 +375,7 @@ class DatasetDownloader(object):
                  write_dataset=True, write_gribmirror=True,
                  deadline=None,
                  dataset_host="ftp.ncep.noaa.gov",
-                 dataset_path="/pub/data/nccf/com/gfs/prod/gfs.{0}/"):
+                 dataset_path_format="/pub/data/nccf/com/gfs/prod/gfs.{0}/{1}/"):
 
         # set these ASAP for close() via __del__ if __init__ raises something
         self.success = False
@@ -404,16 +405,15 @@ class DatasetDownloader(object):
 
         self.deadline = deadline
         self.dataset_host = dataset_host
-        self.dataset_path = dataset_path
-
+        
         self.have_first_file = False
 
         self.files_complete = 0
         self.files_count = 0
         self.completed = Event()
 
-        ds_time_str = self.ds_time.strftime("%Y%m%d%H")
-        self.remote_directory = dataset_path.format(ds_time_str)
+        self.remote_directory = dataset_path_format.format(
+            ds_time.strftime("%Y%m%d"), ds_time.strftime("%H"))
 
         self._greenlets = Group()
         self.unpack_lock = RLock()
@@ -701,7 +701,7 @@ class DownloadWorker(gevent.Greenlet):
         except (gevent.socket.error, ftplib.Error):
             self._handle_ioerror(queue_item)
 
-        except (greenlet.GreenletExit, KeyboardInterrupt, SystemExit):
+        except (GreenletExit, KeyboardInterrupt, SystemExit):
             raise
 
         else:
@@ -797,7 +797,7 @@ class DownloadWorker(gevent.Greenlet):
     def _connection_close(self):
         try:
             self._connection.close()
-        except (greenlet.GreenletExit, KeyboardInterrupt, SystemExit):
+        except (GreenletExit, KeyboardInterrupt, SystemExit):
             raise
         except:
             pass
@@ -823,7 +823,7 @@ class DownloadWorker(gevent.Greenlet):
                             assert_hour=queue_item.hour,
                             callback=lambda a, b, c: sleep(0),
                             expect_pressures=queue_item.expect_pressures)
-            except (greenlet.GreenletExit, KeyboardInterrupt, SystemExit):
+            except (GreenletExit, KeyboardInterrupt, SystemExit):
                 raise
             except:
                 try:
@@ -1011,7 +1011,7 @@ class DownloadDaemon(object):
         """Run the daemon in the foreground."""
 
         last_downloaded_dataset = self.clean_directory()
-        latest_dataset = self._latest_dataset()
+        latest_dataset = _latest_dataset()
 
         if last_downloaded_dataset is None or \
                 last_downloaded_dataset < latest_dataset:
@@ -1034,21 +1034,13 @@ class DownloadDaemon(object):
             self.clean_directory()
 
             next_dataset += timedelta(hours=6)
-
-    def _latest_dataset(self):
-        latest_dataset = (datetime.now() - timedelta(hours=3, minutes=30)) \
-                         .replace(minute=0, second=0, microsecond=0)
-        hour = latest_dataset.hour - (latest_dataset.hour % 6)
-        latest_dataset = latest_dataset.replace(hour=hour)
-        logger.info("latest dataset is %s", latest_dataset)
-        return latest_dataset
-
+    
     def _download(self, ds_time):
         try:
             d = DatasetDownloader(self.directory, ds_time)
             d.open()
             d.download()
-        except (greenlet.GreenletExit, KeyboardInterrupt, SystemExit):
+        except (GreenletExit, KeyboardInterrupt, SystemExit):
             raise
         except:
             logger.exception("Failed to download %s", ds_time)
@@ -1057,18 +1049,28 @@ class DownloadDaemon(object):
         finally:
             d.close()
 
+def _latest_dataset():
+    latest_dataset = (datetime.utcnow() - timedelta(hours=3, minutes=30)) \
+                     .replace(minute=0, second=0, microsecond=0)
+    hour = latest_dataset.hour - (latest_dataset.hour % 6)
+    latest_dataset = latest_dataset.replace(hour=hour)
+    logger.info("latest dataset is %s", latest_dataset)
+    return latest_dataset
 
 def _parse_ds_str(ds_time_str):
-    try:
-        if len(ds_time_str) != 10:
-            raise ValueError
-        ds_time = datetime.strptime(ds_time_str, "%Y%m%d%H")
-    except ValueError:
-        raise argparse.ArgumentTypeError("invalid dataset string")
-
-    if ds_time.hour % 6 != 0:
-        raise argparse.ArgumentTypeError("dataset hour must be a multiple of 6")
-
+    if ds_time_str.strip() == "latest":
+        ds_time = _latest_dataset()
+    else:
+        try:
+            if len(ds_time_str) != 10:
+                raise ValueError
+            ds_time = datetime.strptime(ds_time_str, "%Y%m%d%H")
+        except ValueError:
+            raise argparse.ArgumentTypeError("invalid dataset string")
+        
+        if ds_time.hour % 6 != 0:
+            raise argparse.ArgumentTypeError("dataset hour must be a multiple of 6")
+    
     return ds_time
 
 
@@ -1199,7 +1201,7 @@ def main():
                 download_daemon.run()
             elif args.daemon_subparser_name == 'restart':
                 download_daemon.restart()
-    except (greenlet.GreenletExit, KeyboardInterrupt, SystemExit):
+    except (GreenletExit, KeyboardInterrupt, SystemExit):
         logger.warning("exit via %s", sys.exc_info()[0].__name__)
         raise
     except:
